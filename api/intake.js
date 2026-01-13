@@ -11,6 +11,12 @@ module.exports = async (req, res) => {
     if (!n8nUrl) return res.status(500).json({ error: "Missing N8N_WEBHOOK_URL env var" });
 
     try {
+        new URL(n8nUrl);
+    } catch (e) {
+        return res.status(500).json({ error: "Invalid N8N_WEBHOOK_URL", value: n8nUrl });
+    }
+
+    try {
         const r = await fetch(n8nUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
