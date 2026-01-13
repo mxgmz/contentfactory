@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -30,7 +31,7 @@
             background-color: var(--chat-bg);
             display: flex;
             flex-direction: column;
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
         }
 
         header {
@@ -67,8 +68,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .message.bot {
@@ -160,7 +168,7 @@
             margin-bottom: 10px;
             width: fit-content;
         }
-        
+
         .typing-indicator span {
             display: inline-block;
             width: 6px;
@@ -171,237 +179,252 @@
             margin: 0 2px;
         }
 
-        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        .typing-indicator span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
 
         @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
         }
 
         .debug-panel {
-            font-size: 10px; 
-            color: #ccc; 
-            text-align: center; 
+            font-size: 10px;
+            color: #ccc;
+            text-align: center;
             margin-top: 5px;
         }
     </style>
 </head>
+
 <body>
 
-<div id="app">
-    <header>
-        <span>Content Intake</span>
-        <span id="status-indicator">Ready</span>
-    </header>
+    <div id="app">
+        <header>
+            <span>Content Intake</span>
+            <span id="status-indicator">Ready</span>
+        </header>
 
-    <div id="chat-history">
-        <!-- Messages go here -->
-    </div>
-
-    <div class="typing-indicator" id="typing-indicator">
-        <span></span><span></span><span></span>
-    </div>
-
-    <div class="input-area">
-        <div id="options-container"></div>
-        <div class="input-row">
-            <input type="text" id="user-input" placeholder="Type your answer..." autocomplete="off">
-            <button id="send-btn" class="send-btn">Send</button>
+        <div id="chat-history">
+            <!-- Messages go here -->
         </div>
-        <div class="debug-panel" id="debug-id">No Session</div>
+
+        <div class="typing-indicator" id="typing-indicator">
+            <span></span><span></span><span></span>
+        </div>
+
+        <div class="input-area">
+            <div id="options-container"></div>
+            <div class="input-row">
+                <input type="text" id="user-input" placeholder="Type your answer..." autocomplete="off">
+                <button id="send-btn" class="send-btn">Send</button>
+            </div>
+            <div class="debug-panel" id="debug-id">No Session</div>
+        </div>
     </div>
-</div>
 
-<script>
-    // --- CONFIGURATION ---
-    // REPLACE THIS URL WITH YOUR ACTUAL N8N WEBHOOK URL
-    const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/content-intake'; 
-    
-    // --- STATE ---
-    let state = {
-        requestId: null,
-        isWaiting: false,
-        isComplete: false
-    };
+    <script>
+        // --- CONFIGURATION ---
+        // REPLACE THIS URL WITH YOUR ACTUAL N8N WEBHOOK URL
+        const N8N_WEBHOOK_URL = 'https://maxgomez.app.n8n.cloud/webhook/b7bd4d9c-045a-4755-8cfc-bcdb9deb7ccb';
 
-    // --- DOM ELEMENTS ---
-    const chatHistory = document.getElementById('chat-history');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
-    const optionsContainer = document.getElementById('options-container');
-    const typingIndicator = document.getElementById('typing-indicator');
-    const statusIndicator = document.getElementById('status-indicator');
-    const debugId = document.getElementById('debug-id');
-
-    // --- INITIALIZATION ---
-    function init() {
-        console.log('App initialized.');
-        // If we wanted to persist across reloads, we'd check sessionStorage here.
-        // For now, per requirements, just memory.
-        
-        // Initial ping to n8n to start the conversation?
-        // Requirement says: "If no request_id: Create one, Ask: What are we promoting?"
-        // This implies the user initiates OR the page load initiates.
-        // Let's assume the user sends "Hi" or we auto-trigger a 'start' event.
-        // To make it smooth, let's send a silent 'init' payload or just wait for user.
-        // Actually, "Chat-like" usually waits for user, BUT "Guided form" often starts with bot question.
-        // Let's trigger an empty message to start the flow so the bot asks the first question.
-        sendMessage('', true); 
-    }
-
-    // --- CORE LOGIC ---
-
-    async function sendMessage(text, isHiddenInit = false) {
-        if (state.isWaiting && !isHiddenInit) return;
-        
-        if (!isHiddenInit) {
-            // Render User Message
-            appendMessage('user', text);
-            userInput.value = '';
-            clearOptions();
-        }
-
-        // Update UI State
-        setLoading(true);
-
-        // Prepare Payload
-        const payload = {
-            request_id: state.requestId,
-            user_input: text
+        // --- STATE ---
+        let state = {
+            requestId: null,
+            isWaiting: false,
+            isComplete: false
         };
 
-        try {
-            console.log('Sending payload:', payload);
-            
-            // In a real scenario, this fetch would go to n8n.
-            // For DEMO purposes without a live backend, I'll add a simplified mock mode check
-            // BUT strict requirements say "Every user action sends data to n8n". 
-            // So we default to fetch.
-            
-            const response = await fetch(N8N_WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+        // --- DOM ELEMENTS ---
+        const chatHistory = document.getElementById('chat-history');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const optionsContainer = document.getElementById('options-container');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const statusIndicator = document.getElementById('status-indicator');
+        const debugId = document.getElementById('debug-id');
 
-            if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
+        // --- INITIALIZATION ---
+        function init() {
+            console.log('App initialized.');
+            // If we wanted to persist across reloads, we'd check sessionStorage here.
+            // For now, per requirements, just memory.
+
+            // Initial ping to n8n to start the conversation?
+            // Requirement says: "If no request_id: Create one, Ask: What are we promoting?"
+            // This implies the user initiates OR the page load initiates.
+            // Let's assume the user sends "Hi" or we auto-trigger a 'start' event.
+            // To make it smooth, let's send a silent 'init' payload or just wait for user.
+            // Actually, "Chat-like" usually waits for user, BUT "Guided form" often starts with bot question.
+            // Let's trigger an empty message to start the flow so the bot asks the first question.
+            sendMessage('', true);
+        }
+
+        // --- CORE LOGIC ---
+
+        async function sendMessage(text, isHiddenInit = false) {
+            if (state.isWaiting && !isHiddenInit) return;
+
+            if (!isHiddenInit) {
+                // Render User Message
+                appendMessage('user', text);
+                userInput.value = '';
+                clearOptions();
             }
 
-            const data = await response.json();
-            handleResponse(data);
+            // Update UI State
+            setLoading(true);
 
-        } catch (error) {
-            console.error('Webhook Error:', error);
-            // Fallback for demo if fetch fails (likely CORS or no server)
-            appendMessage('bot', `⚠️ Error connecting to n8n: ${error.message}. <br><br>Make sure n8n is running and CORS is configured, or check the console.`);
+            // Prepare Payload
+            const payload = {
+                request_id: state.requestId,
+                user_input: text
+            };
+
+            try {
+                console.log('Sending payload:', payload);
+
+                // In a real scenario, this fetch would go to n8n.
+                // For DEMO purposes without a live backend, I'll add a simplified mock mode check
+                // BUT strict requirements say "Every user action sends data to n8n". 
+                // So we default to fetch.
+
+                const response = await fetch(N8N_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                handleResponse(data);
+
+            } catch (error) {
+                console.error('Webhook Error:', error);
+                // Fallback for demo if fetch fails (likely CORS or no server)
+                appendMessage('bot', `⚠️ Error connecting to n8n: ${error.message}. <br><br>Make sure n8n is running and CORS is configured, or check the console.`);
+                setLoading(false);
+            }
+        }
+
+        function handleResponse(data) {
+            console.log('Received response:', data);
+
+            // 1. Update Request ID
+            if (data.request_id) {
+                state.requestId = data.request_id;
+                debugId.innerText = `ID: ${state.requestId}`;
+            }
+
+            // 2. Update Completion State
+            if (data.is_complete) {
+                state.isComplete = true;
+                statusIndicator.innerText = "Completed";
+                userInput.disabled = true;
+                sendBtn.disabled = true;
+            }
+
+            // 3. Render Bot Message
+            if (data.bot_message) {
+                appendMessage('bot', data.bot_message);
+            }
+
+            // 4. Handle Input Type (Options vs Text)
+            if (data.input_type === 'select' && data.options && Array.isArray(data.options)) {
+                renderOptions(data.options);
+                // Optional: disable text input if stricly select? 
+                // Requirement says "Support free text input" AND "button-based answers".
+                // Usually good UX to allow both, but let's keep text open.
+            }
+
             setLoading(false);
         }
-    }
 
-    function handleResponse(data) {
-        console.log('Received response:', data);
-        
-        // 1. Update Request ID
-        if (data.request_id) {
-            state.requestId = data.request_id;
-            debugId.innerText = `ID: ${state.requestId}`;
+        // --- UI HELPERS ---
+
+        function appendMessage(sender, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message', sender);
+            // Allow basic HTML line breaks
+            msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+            chatHistory.appendChild(msgDiv);
+            scrollToBottom();
         }
 
-        // 2. Update Completion State
-        if (data.is_complete) {
-            state.isComplete = true;
-            statusIndicator.innerText = "Completed";
-            userInput.disabled = true;
-            sendBtn.disabled = true;
+        function renderOptions(options) {
+            optionsContainer.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.classList.add('option-btn');
+                btn.innerText = opt;
+                btn.onclick = () => sendMessage(opt);
+                optionsContainer.appendChild(btn);
+            });
+            scrollToBottom();
         }
 
-        // 3. Render Bot Message
-        if (data.bot_message) {
-            appendMessage('bot', data.bot_message);
+        function clearOptions() {
+            optionsContainer.innerHTML = '';
         }
 
-        // 4. Handle Input Type (Options vs Text)
-        if (data.input_type === 'select' && data.options && Array.isArray(data.options)) {
-            renderOptions(data.options);
-            // Optional: disable text input if stricly select? 
-            // Requirement says "Support free text input" AND "button-based answers".
-            // Usually good UX to allow both, but let's keep text open.
-        }
-
-        setLoading(false);
-    }
-
-    // --- UI HELPERS ---
-
-    function appendMessage(sender, text) {
-        const msgDiv = document.createElement('div');
-        msgDiv.classList.add('message', sender);
-        // Allow basic HTML line breaks
-        msgDiv.innerHTML = text.replace(/\n/g, '<br>');
-        chatHistory.appendChild(msgDiv);
-        scrollToBottom();
-    }
-
-    function renderOptions(options) {
-        optionsContainer.innerHTML = '';
-        options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.classList.add('option-btn');
-            btn.innerText = opt;
-            btn.onclick = () => sendMessage(opt);
-            optionsContainer.appendChild(btn);
-        });
-        scrollToBottom();
-    }
-
-    function clearOptions() {
-        optionsContainer.innerHTML = '';
-    }
-
-    function setLoading(isLoading) {
-        state.isWaiting = isLoading;
-        if (isLoading) {
-            typingIndicator.style.display = 'block';
-            userInput.disabled = true;
-            sendBtn.disabled = true;
-            statusIndicator.innerText = "Thinking...";
-        } else {
-            typingIndicator.style.display = 'none';
-            if (!state.isComplete) {
-                userInput.disabled = false;
-                sendBtn.disabled = false;
-                statusIndicator.innerText = "Online";
-                userInput.focus();
+        function setLoading(isLoading) {
+            state.isWaiting = isLoading;
+            if (isLoading) {
+                typingIndicator.style.display = 'block';
+                userInput.disabled = true;
+                sendBtn.disabled = true;
+                statusIndicator.innerText = "Thinking...";
+            } else {
+                typingIndicator.style.display = 'none';
+                if (!state.isComplete) {
+                    userInput.disabled = false;
+                    sendBtn.disabled = false;
+                    statusIndicator.innerText = "Online";
+                    userInput.focus();
+                }
             }
+            scrollToBottom();
         }
-        scrollToBottom();
-    }
 
-    function scrollToBottom() {
-        requestAnimationFrame(() => {
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-        });
-    }
+        function scrollToBottom() {
+            requestAnimationFrame(() => {
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            });
+        }
 
-    // --- EVENT LISTENERS ---
+        // --- EVENT LISTENERS ---
 
-    sendBtn.addEventListener('click', () => {
-        const text = userInput.value.trim();
-        if (text) sendMessage(text);
-    });
-
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+        sendBtn.addEventListener('click', () => {
             const text = userInput.value.trim();
             if (text) sendMessage(text);
-        }
-    });
+        });
 
-    // Start
-    init();
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const text = userInput.value.trim();
+                if (text) sendMessage(text);
+            }
+        });
 
-</script>
+        // Start
+        init();
+
+    </script>
 </body>
+
 </html>
