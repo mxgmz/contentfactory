@@ -20,6 +20,6 @@ module.exports = async (req, res) => {
         res.setHeader("Content-Type", r.headers.get("content-type") || "application/json");
         return res.status(r.status).send(text);
     } catch (err) {
-        return res.status(500).json({ error: "Proxy failed", details: String(err) });
+        return res.status(500).json({ error: "Proxy fetch failed", details: String(err) });
     }
 };
