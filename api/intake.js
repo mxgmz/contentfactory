@@ -1,4 +1,5 @@
 module.exports = async (req, res) => {
+    // Basic CORS for the browser call to /api/intake (same-origin anyway, but harmless)
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
