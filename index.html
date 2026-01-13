@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Intake Chat</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f5;
+            --chat-bg: #ffffff;
+            --primary-color: #000000;
+            --bot-msg-bg: #e4e4e7;
+            --user-msg-bg: #000000;
+            --user-msg-text: #ffffff;
+            --border-color: #d4d4d8;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 600px;
+            background-color: var(--chat-bg);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #status-indicator {
+            font-size: 12px;
+            color: #71717a;
+        }
+
+        #chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 15px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background-color: var(--bot-msg-bg);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--user-msg-bg);
+            color: var(--user-msg-text);
+            border-bottom-right-radius: 4px;
+        }
+
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background: #fff;
+        }
+
+        #options-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        /* Form Layout */
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        button.send-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button.send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Option Buttons */
+        .option-btn {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover {
+            border-color: var(--primary-color);
+            background-color: #fafafa;
+        }
+
+        /* Loading Dots */
+        .typing-indicator {
+            display: none;
+            padding: 12px 16px;
+            background: var(--bot-msg-bg);
+            border-radius: 12px;
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+            margin-bottom: 10px;
+            width: fit-content;
+        }
+        
+        .typing-indicator span {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: #71717a;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+            margin: 0 2px;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .debug-panel {
+            font-size: 10px; 
+            color: #ccc; 
+            text-align: center; 
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <header>
+        <span>Content Intake</span>
+        <span id="status-indicator">Ready</span>
+    </header>
+
+    <div id="chat-history">
+        <!-- Messages go here -->
+    </div>
+
+    <div class="typing-indicator" id="typing-indicator">
+        <span></span><span></span><span></span>
+    </div>
+
+    <div class="input-area">
+        <div id="options-container"></div>
+        <div class="input-row">
+            <input type="text" id="user-input" placeholder="Type your answer..." autocomplete="off">
+            <button id="send-btn" class="send-btn">Send</button>
+        </div>
+        <div class="debug-panel" id="debug-id">No Session</div>
+    </div>
+</div>
+
+<script>
+    // --- CONFIGURATION ---
+    // REPLACE THIS URL WITH YOUR ACTUAL N8N WEBHOOK URL
+    const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/content-intake'; 
+    
+    // --- STATE ---
+    let state = {
+        requestId: null,
+        isWaiting: false,
+        isComplete: false
+    };
+
+    // --- DOM ELEMENTS ---
+    const chatHistory = document.getElementById('chat-history');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const optionsContainer = document.getElementById('options-container');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const statusIndicator = document.getElementById('status-indicator');
+    const debugId = document.getElementById('debug-id');
+
+    // --- INITIALIZATION ---
+    function init() {
+        console.log('App initialized.');
+        // If we wanted to persist across reloads, we'd check sessionStorage here.
+        // For now, per requirements, just memory.
+        
+        // Initial ping to n8n to start the conversation?
+        // Requirement says: "If no request_id: Create one, Ask: What are we promoting?"
+        // This implies the user initiates OR the page load initiates.
+        // Let's assume the user sends "Hi" or we auto-trigger a 'start' event.
+        // To make it smooth, let's send a silent 'init' payload or just wait for user.
+        // Actually, "Chat-like" usually waits for user, BUT "Guided form" often starts with bot question.
+        // Let's trigger an empty message to start the flow so the bot asks the first question.
+        sendMessage('', true); 
+    }
+
+    // --- CORE LOGIC ---
+
+    async function sendMessage(text, isHiddenInit = false) {
+        if (state.isWaiting && !isHiddenInit) return;
+        
+        if (!isHiddenInit) {
+            // Render User Message
+            appendMessage('user', text);
+            userInput.value = '';
+            clearOptions();
+        }
+
+        // Update UI State
+        setLoading(true);
+
+        // Prepare Payload
+        const payload = {
+            request_id: state.requestId,
+            user_input: text
+        };
+
+        try {
+            console.log('Sending payload:', payload);
+            
+            // In a real scenario, this fetch would go to n8n.
+            // For DEMO purposes without a live backend, I'll add a simplified mock mode check
+            // BUT strict requirements say "Every user action sends data to n8n". 
+            // So we default to fetch.
+            
+            const response = await fetch(N8N_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            handleResponse(data);
+
+        } catch (error) {
+            console.error('Webhook Error:', error);
+            // Fallback for demo if fetch fails (likely CORS or no server)
+            appendMessage('bot', `⚠️ Error connecting to n8n: ${error.message}. <br><br>Make sure n8n is running and CORS is configured, or check the console.`);
+            setLoading(false);
+        }
+    }
+
+    function handleResponse(data) {
+        console.log('Received response:', data);
+        
+        // 1. Update Request ID
+        if (data.request_id) {
+            state.requestId = data.request_id;
+            debugId.innerText = `ID: ${state.requestId}`;
+        }
+
+        // 2. Update Completion State
+        if (data.is_complete) {
+            state.isComplete = true;
+            statusIndicator.innerText = "Completed";
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+        }
+
+        // 3. Render Bot Message
+        if (data.bot_message) {
+            appendMessage('bot', data.bot_message);
+        }
+
+        // 4. Handle Input Type (Options vs Text)
+        if (data.input_type === 'select' && data.options && Array.isArray(data.options)) {
+            renderOptions(data.options);
+            // Optional: disable text input if stricly select? 
+            // Requirement says "Support free text input" AND "button-based answers".
+            // Usually good UX to allow both, but let's keep text open.
+        }
+
+        setLoading(false);
+    }
+
+    // --- UI HELPERS ---
+
+    function appendMessage(sender, text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', sender);
+        // Allow basic HTML line breaks
+        msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+        chatHistory.appendChild(msgDiv);
+        scrollToBottom();
+    }
+
+    function renderOptions(options) {
+        optionsContainer.innerHTML = '';
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.classList.add('option-btn');
+            btn.innerText = opt;
+            btn.onclick = () => sendMessage(opt);
+            optionsContainer.appendChild(btn);
+        });
+        scrollToBottom();
+    }
+
+    function clearOptions() {
+        optionsContainer.innerHTML = '';
+    }
+
+    function setLoading(isLoading) {
+        state.isWaiting = isLoading;
+        if (isLoading) {
+            typingIndicator.style.display = 'block';
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            statusIndicator.innerText = "Thinking...";
+        } else {
+            typingIndicator.style.display = 'none';
+            if (!state.isComplete) {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                statusIndicator.innerText = "Online";
+                userInput.focus();
+            }
+        }
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        requestAnimationFrame(() => {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        });
+    }
+
+    // --- EVENT LISTENERS ---
+
+    sendBtn.addEventListener('click', () => {
+        const text = userInput.value.trim();
+        if (text) sendMessage(text);
+    });
+
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const text = userInput.value.trim();
+            if (text) sendMessage(text);
+        }
+    });
+
+    // Start
+    init();
+
+</script>
+</body>
+</html>
