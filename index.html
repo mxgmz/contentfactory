@@ -238,7 +238,7 @@
     <script>
         // --- CONFIGURATION test ---
         // REPLACE THIS URL WITH YOUR ACTUAL N8Ng WEBHOOK URL test
-        const N8N_WEBHOOK_URL = '/api/intake';
+        const N8N_WEBHOOK_URL = `${window.location.origin}/api/intake`;
 
         // --- STATE ---
         let state = {
@@ -269,7 +269,8 @@
             // To make it smooth, let's send a silent 'init' payload or just wait for user.
             // Actually, "Chat-like" usually waits for user, BUT "Guided form" often starts with bot question.
             // Let's trigger an empty message to start the flow so the bot asks the first question.
-            sendMessage('', true);
+            appendMessage('bot', '¿Qué estamos promoviendo hoy?');
+
         }
 
         // --- CORE LOGIC ---
@@ -325,12 +326,27 @@
 
         //userid
         function getUserId() {
-            let id = localStorage.getItem("cf_user_id");
-            if (!id) {
-                id = crypto.randomUUID();
-                localStorage.setItem("cf_user_id", id);
+            try {
+                let id = localStorage.getItem("cf_user_id");
+                if (!id) {
+                    id = (crypto.randomUUID?.() ?? fallbackUUID());
+                    localStorage.setItem("cf_user_id", id);
+                }
+                return id;
+            } catch (e) {
+                // If storage is blocked, just use a per-page fallback
+                return (crypto.randomUUID?.() ?? fallbackUUID());
             }
-            return id;
+        }
+
+        function fallbackUUID() {
+            // RFC4122 v4-ish fallback
+            const buf = new Uint8Array(16);
+            crypto.getRandomValues(buf);
+            buf[6] = (buf[6] & 0x0f) | 0x40;
+            buf[8] = (buf[8] & 0x3f) | 0x80;
+            const hex = [...buf].map(b => b.toString(16).padStart(2, "0")).join("");
+            return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
         }
 
         function handleResponse(data) {
