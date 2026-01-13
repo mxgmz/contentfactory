@@ -1,5 +1,4 @@
 module.exports = async (req, res) => {
-    // Basic CORS for the browser call to /api/intake (same-origin anyway, but harmless)
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -21,6 +20,6 @@ module.exports = async (req, res) => {
         res.setHeader("Content-Type", r.headers.get("content-type") || "application/json");
         return res.status(r.status).send(text);
     } catch (err) {
-        return res.status(500).json({ error: "Proxy fetch failed", details: String(err) });
+        return res.status(500).json({ error: "Proxy failed", details: String(err) });
     }
 };

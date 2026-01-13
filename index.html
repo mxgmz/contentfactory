@@ -289,6 +289,7 @@
 
             // Prepare Payload
             const payload = {
+                user_id: getUserId(),
                 request_id: state.requestId,
                 user_input: text
             };
@@ -320,6 +321,16 @@
                 appendMessage('bot', `⚠️ Error connecting to n8n: ${error.message}. <br><br>Make sure n8n is running and CORS is configured, or check the console.`);
                 setLoading(false);
             }
+        }
+
+        //userid
+        function getUserId() {
+            let id = localStorage.getItem("cf_user_id");
+            if (!id) {
+                id = crypto.randomUUID();
+                localStorage.setItem("cf_user_id", id);
+            }
+            return id;
         }
 
         function handleResponse(data) {
