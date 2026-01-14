@@ -238,7 +238,7 @@
     <script>
         // --- CONFIGURATION test ---
         // REPLACE THIS URL WITH YOUR ACTUAL N8Ng WEBHOOK URL test
-        const N8N_WEBHOOK_URL = `${window.location.origin}/api/intake`;
+        const API_URL = "/api/intake";
 
         // --- STATE ---
         let state = {
@@ -303,7 +303,7 @@
                 // BUT strict requirements say "Every user action sends data to n8n". 
                 // So we default to fetch.
 
-                const response = await fetch(N8N_WEBHOOK_URL, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
