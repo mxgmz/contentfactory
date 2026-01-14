@@ -326,17 +326,12 @@
 
         //userid
         function getUserId() {
-            try {
-                let id = localStorage.getItem("cf_user_id");
-                if (!id) {
-                    id = (crypto.randomUUID?.() ?? fallbackUUID());
-                    localStorage.setItem("cf_user_id", id);
-                }
-                return id;
-            } catch (e) {
-                // If storage is blocked, just use a per-page fallback
-                return (crypto.randomUUID?.() ?? fallbackUUID());
+            let id = localStorage.getItem("cf_user_id");
+            if (!id) {
+                id = (crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+                localStorage.setItem("cf_user_id", id);
             }
+            return id;
         }
 
         function fallbackUUID() {
