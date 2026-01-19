@@ -159,6 +159,77 @@
             background-color: #fafafa;
         }
 
+        /* Content Pieces Cards */
+        .content-pieces-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 10px 0 16px 0;
+            width: 100%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .content-piece-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .piece-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f4f4f5;
+            padding-bottom: 8px;
+            margin-bottom: 4px;
+        }
+
+        .piece-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--primary-color);
+        }
+
+        .piece-number {
+            font-size: 0.8rem;
+            color: #71717a;
+            background: #f4f4f5;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .piece-preview {
+            font-size: 0.95rem;
+            color: #3f3f46;
+            line-height: 1.5;
+        }
+
+        .piece-meta {
+            font-size: 0.85rem;
+            color: #71717a;
+            background: #fafafa;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .piece-meta strong {
+            color: #52525b;
+        }
+
+        .piece-hashtags {
+            color: #2563eb;
+            font-weight: 500;
+        }
+
         /* Loading Dots */
         .typing-indicator {
             display: none;
@@ -447,6 +518,11 @@
                 appendMessage('bot', data.bot_message);
             }
 
+            // Render Content Pieces (if available)
+            if (data.showPieces && data.pieces && Array.isArray(data.pieces)) {
+                renderContentPieces(data.pieces);
+            }
+
             // 4. Handle Input Type (Options vs Text)
             if (data.input_type === 'select' && data.options && Array.isArray(data.options)) {
                 renderOptions(data.options);
@@ -501,6 +577,33 @@
                     userInput.focus();
                 }
             }
+            scrollToBottom();
+        }
+
+        function renderContentPieces(pieces) {
+            const container = document.createElement('div');
+            container.className = 'content-pieces-container';
+
+            pieces.forEach(piece => {
+                const card = document.createElement('div');
+                card.className = 'content-piece-card';
+                card.innerHTML = `
+                    <div class="piece-header">
+                        <div class="piece-title">${piece.title}</div>
+                        <span class="piece-number">#${piece.number}</span>
+                    </div>
+                    <div class="piece-body">
+                        <div class="piece-preview">${piece.preview}</div>
+                        <div class="piece-meta">
+                            <div><strong>Hashtags:</strong> <span class="piece-hashtags">${piece.hashtags}</span></div>
+                            <div><strong>CTA:</strong> ${piece.cta}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            chatHistory.appendChild(container);
             scrollToBottom();
         }
 
