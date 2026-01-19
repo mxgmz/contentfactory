@@ -525,6 +525,20 @@
         function handleResponse(data) {
             console.log('Received response:', data);
 
+            // Log debug info if present
+            if (data._debug) {
+                console.log('=== DEBUG INFO ===');
+                console.log('Raw message:', data._debug.rawMessage);
+                console.log('Normalized message:', data._debug.normalizedMessage);
+                console.log('isApproveCommand:', data._debug.isApproveCommand);
+                console.log('isRegenerateCommand:', data._debug.isRegenerateCommand);
+                console.log('isChangeRequest:', data._debug.isChangeRequest);
+                console.log('Matched condition:', data._debug.matchedCondition);
+                console.log('New state:', data._debug.newState);
+                console.log('==================');
+            }
+            console.log('Current state:', data.current_state);
+
             // 1. Update Request ID
             if (data.request_id) {
                 state.requestId = data.request_id;
@@ -549,12 +563,10 @@
                 renderPieces(data.pieces);
             }
 
-            // 5. Handle Input Type (Options vs Text)
-            if (data.input_type === 'select' && data.options && Array.isArray(data.options)) {
+            // 5. Handle Options (show for both 'select' and 'hybrid' input types)
+            if (data.options && Array.isArray(data.options) && data.options.length > 0) {
                 renderOptions(data.options);
-                // Optional: disable text input if stricly select?
-                // Requirement says "Support free text input" AND "button-based answers".
-                // Usually good UX to allow both, but let's keep text open.
+                // Options populate input field - user can edit before sending
             }
 
             setLoading(false);
@@ -577,7 +589,15 @@
                 const btn = document.createElement('button');
                 btn.classList.add('option-btn');
                 btn.innerText = opt;
-                btn.onclick = () => sendMessage(opt);
+                // Populate input field instead of auto-submitting
+                // User can then edit or add to the message before sending
+                btn.onclick = () => {
+                    userInput.value = opt;
+                    userInput.focus();
+                    // Visual feedback that option was selected
+                    btn.style.background = 'var(--primary-color)';
+                    btn.style.color = 'white';
+                };
                 optionsContainer.appendChild(btn);
             });
             scrollToBottom();
