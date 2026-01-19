@@ -563,10 +563,16 @@
                 renderPieces(data.pieces);
             }
 
-            // 5. Handle Options (show for both 'select' and 'hybrid' input types)
-            if (data.options && Array.isArray(data.options) && data.options.length > 0) {
+            // 5. Handle Images Display (NEW - for IMAGE_APPROVAL state)
+            if (data.showImages && data.images && Array.isArray(data.images)) {
+                renderImages(data.images);
+            }
+
+            // 6. Handle Quick Replies (CRITICAL FIX - check both fields)
+            if (data.quickReplies && Array.isArray(data.quickReplies) && data.quickReplies.length > 0) {
+                renderOptions(data.quickReplies);
+            } else if (data.options && Array.isArray(data.options) && data.options.length > 0) {
                 renderOptions(data.options);
-                // Options populate input field - user can edit before sending
             }
 
             setLoading(false);
@@ -634,6 +640,30 @@
                     card.appendChild(title);
                 }
 
+                // IMAGE DISPLAY (NEW)
+                if (piece.image_url) {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.classList.add('piece-image-container');
+                    imageContainer.style.marginBottom = '12px';
+                    imageContainer.style.borderRadius = '8px';
+                    imageContainer.style.overflow = 'hidden';
+                    imageContainer.style.border = '1px solid var(--border-color)';
+                    imageContainer.style.backgroundColor = '#fafafa';
+
+                    const img = document.createElement('img');
+                    img.src = piece.image_url;
+                    img.alt = piece.title || 'Generated image';
+                    img.style.width = '100%';
+                    img.style.height = 'auto';
+                    img.style.display = 'block';
+                    img.onerror = () => {
+                        imageContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#71717a;">Image loading...</div>';
+                    };
+
+                    imageContainer.appendChild(img);
+                    card.appendChild(imageContainer);
+                }
+
                 // Full content (or preview as fallback)
                 const contentText = piece.content || piece.preview || '';
                 if (contentText) {
@@ -665,6 +695,102 @@
                 if (meta.children.length > 0) {
                     card.appendChild(meta);
                 }
+
+                container.appendChild(card);
+            });
+
+            chatHistory.appendChild(container);
+            scrollToBottom();
+        }
+
+        // NEW: Render images for approval
+        function renderImages(images) {
+            if (!images || !Array.isArray(images) || images.length === 0) return;
+
+            const container = document.createElement('div');
+            container.classList.add('images-container');
+            container.style.display = 'grid';
+            container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(250px, 1fr))';
+            container.style.gap = '16px';
+            container.style.marginTop = '16px';
+            container.style.marginBottom = '16px';
+
+            images.forEach((image, index) => {
+                const card = document.createElement('div');
+                card.classList.add('image-card');
+                card.style.background = '#ffffff';
+                card.style.border = '1px solid var(--border-color)';
+                card.style.borderRadius = '12px';
+                card.style.padding = '12px';
+                card.style.cursor = 'pointer';
+                card.style.transition = 'all 0.2s';
+
+                card.onmouseover = () => {
+                    card.style.borderColor = 'var(--primary-color)';
+                    card.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                };
+                card.onmouseout = () => {
+                    card.style.borderColor = 'var(--border-color)';
+                    card.style.boxShadow = 'none';
+                };
+
+                // Image number badge
+                const badge = document.createElement('div');
+                badge.style.fontSize = '11px';
+                badge.style.fontWeight = '600';
+                badge.style.marginBottom = '8px';
+                badge.style.color = '#71717a';
+                badge.innerText = `Image ${image.piece_number || (index + 1)}`;
+                card.appendChild(badge);
+
+                // Image
+                const img = document.createElement('img');
+                img.src = image.image_url;
+                img.alt = `Generated image ${index + 1}`;
+                img.style.width = '100%';
+                img.style.height = 'auto';
+                img.style.borderRadius = '6px';
+                img.style.marginBottom = '8px';
+                img.style.backgroundColor = '#fafafa';
+                img.onerror = () => {
+                    img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f4f4f5" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" fill="%2371717a" font-size="14"%3ELoading...%3C/text%3E%3C/svg%3E';
+                };
+                card.appendChild(img);
+
+                // Action buttons
+                const actions = document.createElement('div');
+                actions.style.display = 'flex';
+                actions.style.gap = '8px';
+                actions.style.marginTop = '8px';
+
+                const approveBtn = document.createElement('button');
+                approveBtn.classList.add('option-btn');
+                approveBtn.innerText = '✓ Approve';
+                approveBtn.style.flex = '1';
+                approveBtn.style.fontSize = '12px';
+                approveBtn.style.background = '#ecfdf5';
+                approveBtn.style.color = '#059669';
+                approveBtn.style.border = '1px solid #a7f3d0';
+                approveBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    userInput.value = `Approve image ${image.piece_number || (index + 1)}`;
+                    sendMessage(userInput.value);
+                };
+
+                const regenBtn = document.createElement('button');
+                regenBtn.classList.add('option-btn');
+                regenBtn.innerText = '↻ Regenerate';
+                regenBtn.style.flex = '1';
+                regenBtn.style.fontSize = '12px';
+                regenBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    userInput.value = `Regenerate image ${image.piece_number || (index + 1)}`;
+                    userInput.focus();
+                };
+
+                actions.appendChild(approveBtn);
+                actions.appendChild(regenBtn);
+                card.appendChild(actions);
 
                 container.appendChild(card);
             });
