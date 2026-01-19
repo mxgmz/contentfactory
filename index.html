@@ -159,77 +159,6 @@
             background-color: #fafafa;
         }
 
-        /* Content Pieces Cards */
-        .content-pieces-container {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin: 10px 0 16px 0;
-            width: 100%;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .content-piece-card {
-            background: #ffffff;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .piece-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #f4f4f5;
-            padding-bottom: 8px;
-            margin-bottom: 4px;
-        }
-
-        .piece-title {
-            font-weight: 700;
-            font-size: 1.05rem;
-            color: var(--primary-color);
-        }
-
-        .piece-number {
-            font-size: 0.8rem;
-            color: #71717a;
-            background: #f4f4f5;
-            padding: 2px 8px;
-            border-radius: 12px;
-        }
-
-        .piece-preview {
-            font-size: 0.95rem;
-            color: #3f3f46;
-            line-height: 1.5;
-        }
-
-        .piece-meta {
-            font-size: 0.85rem;
-            color: #71717a;
-            background: #fafafa;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .piece-meta strong {
-            color: #52525b;
-        }
-
-        .piece-hashtags {
-            color: #2563eb;
-            font-weight: 500;
-        }
-
         /* Loading Dots */
         .typing-indicator {
             display: none;
@@ -295,6 +224,103 @@
             color: var(--danger-color);
             border-color: var(--danger-color);
             background-color: #fef2f2;
+        }
+
+        /* Content Pieces Cards */
+        .pieces-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 8px;
+            max-width: 100%;
+        }
+
+        .piece-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .piece-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .piece-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .piece-number {
+            background: var(--primary-color);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .piece-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: #18181b;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .piece-preview,
+        .piece-content {
+            font-size: 14px;
+            color: #52525b;
+            line-height: 1.6;
+            margin-bottom: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: none;
+            /* No height limit - show full content */
+            overflow: visible;
+        }
+
+        .piece-content {
+            background: #fafafa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .piece-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .piece-hashtags {
+            font-size: 12px;
+            color: #3b82f6;
+            background: #eff6ff;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .piece-cta {
+            font-size: 12px;
+            color: #059669;
+            background: #ecfdf5;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .pieces-summary {
+            font-size: 13px;
+            color: #71717a;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
         }
     </style>
 </head>
@@ -518,15 +544,15 @@
                 appendMessage('bot', data.bot_message);
             }
 
-            // Render Content Pieces (if available)
+            // 4. Handle Pieces Display (for TEXT_APPROVAL state)
             if (data.showPieces && data.pieces && Array.isArray(data.pieces)) {
-                renderContentPieces(data.pieces);
+                renderPieces(data.pieces);
             }
 
-            // 4. Handle Input Type (Options vs Text)
+            // 5. Handle Input Type (Options vs Text)
             if (data.input_type === 'select' && data.options && Array.isArray(data.options)) {
                 renderOptions(data.options);
-                // Optional: disable text input if stricly select? 
+                // Optional: disable text input if stricly select?
                 // Requirement says "Support free text input" AND "button-based answers".
                 // Usually good UX to allow both, but let's keep text open.
             }
@@ -561,6 +587,72 @@
             optionsContainer.innerHTML = '';
         }
 
+        function renderPieces(pieces) {
+            if (!pieces || !Array.isArray(pieces) || pieces.length === 0) return;
+
+            const container = document.createElement('div');
+            container.classList.add('pieces-container');
+
+            pieces.forEach((piece, index) => {
+                const card = document.createElement('div');
+                card.classList.add('piece-card');
+
+                // Header with piece number
+                const header = document.createElement('div');
+                header.classList.add('piece-header');
+                const numberBadge = document.createElement('span');
+                numberBadge.classList.add('piece-number');
+                numberBadge.innerText = `Piece ${piece.number || (index + 1)}`;
+                header.appendChild(numberBadge);
+                card.appendChild(header);
+
+                // Title
+                if (piece.title) {
+                    const title = document.createElement('div');
+                    title.classList.add('piece-title');
+                    title.innerText = piece.title;
+                    card.appendChild(title);
+                }
+
+                // Full content (or preview as fallback)
+                const contentText = piece.content || piece.preview || '';
+                if (contentText) {
+                    const content = document.createElement('div');
+                    content.classList.add('piece-content');
+                    // Preserve line breaks in the content
+                    content.innerHTML = contentText.replace(/\n/g, '<br>');
+                    card.appendChild(content);
+                }
+
+                // Meta info (hashtags, CTA)
+                const meta = document.createElement('div');
+                meta.classList.add('piece-meta');
+
+                if (piece.hashtags) {
+                    const hashtags = document.createElement('span');
+                    hashtags.classList.add('piece-hashtags');
+                    hashtags.innerText = piece.hashtags;
+                    meta.appendChild(hashtags);
+                }
+
+                if (piece.cta) {
+                    const cta = document.createElement('span');
+                    cta.classList.add('piece-cta');
+                    cta.innerText = `CTA: ${piece.cta}`;
+                    meta.appendChild(cta);
+                }
+
+                if (meta.children.length > 0) {
+                    card.appendChild(meta);
+                }
+
+                container.appendChild(card);
+            });
+
+            chatHistory.appendChild(container);
+            scrollToBottom();
+        }
+
         function setLoading(isLoading) {
             state.isWaiting = isLoading;
             if (isLoading) {
@@ -577,33 +669,6 @@
                     userInput.focus();
                 }
             }
-            scrollToBottom();
-        }
-
-        function renderContentPieces(pieces) {
-            const container = document.createElement('div');
-            container.className = 'content-pieces-container';
-
-            pieces.forEach(piece => {
-                const card = document.createElement('div');
-                card.className = 'content-piece-card';
-                card.innerHTML = `
-                    <div class="piece-header">
-                        <div class="piece-title">${piece.title}</div>
-                        <span class="piece-number">#${piece.number}</span>
-                    </div>
-                    <div class="piece-body">
-                        <div class="piece-preview">${piece.preview}</div>
-                        <div class="piece-meta">
-                            <div><strong>Hashtags:</strong> <span class="piece-hashtags">${piece.hashtags}</span></div>
-                            <div><strong>CTA:</strong> ${piece.cta}</div>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-
-            chatHistory.appendChild(container);
             scrollToBottom();
         }
 
