@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Content Factory</title>
+    <title>Content Intake Chat</title>
     <style>
         :root {
             --bg-color: #f4f4f5;
@@ -14,8 +14,8 @@
             --user-msg-bg: #000000;
             --user-msg-text: #ffffff;
             --border-color: #d4d4d8;
-            --success-color: #059669;
             --danger-color: #ef4444;
+            --danger-hover: #dc2626;
         }
 
         body {
@@ -29,7 +29,7 @@
 
         #app {
             width: 100%;
-            max-width: 800px;
+            max-width: 600px;
             background-color: var(--chat-bg);
             display: flex;
             flex-direction: column;
@@ -49,15 +49,6 @@
         #status-indicator {
             font-size: 12px;
             color: #71717a;
-        }
-
-        .language-badge {
-            background: var(--primary-color);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
         }
 
         #chat-history {
@@ -116,13 +107,13 @@
             margin-bottom: 12px;
         }
 
+        /* Form Layout */
         .input-row {
             display: flex;
             gap: 10px;
         }
 
-        input[type="text"],
-        input[type="date"] {
+        input[type="text"] {
             flex: 1;
             padding: 12px;
             border: 1px solid var(--border-color);
@@ -132,8 +123,7 @@
             transition: border-color 0.2s;
         }
 
-        input[type="text"]:focus,
-        input[type="date"]:focus {
+        input[type="text"]:focus {
             border-color: var(--primary-color);
         }
 
@@ -153,6 +143,7 @@
             cursor: not-allowed;
         }
 
+        /* Option Buttons */
         .option-btn {
             background-color: #fff;
             border: 1px solid var(--border-color);
@@ -168,6 +159,7 @@
             background-color: #fafafa;
         }
 
+        /* Loading Dots */
         .typing-indicator {
             display: none;
             padding: 12px 16px;
@@ -189,6 +181,14 @@
             margin: 0 2px;
         }
 
+        .typing-indicator span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
         @keyframes bounce {
 
             0%,
@@ -200,6 +200,13 @@
             40% {
                 transform: scale(1);
             }
+        }
+
+        .debug-panel {
+            font-size: 10px;
+            color: #ccc;
+            text-align: center;
+            margin-top: 5px;
         }
 
         .new-job-btn {
@@ -219,12 +226,13 @@
             background-color: #fef2f2;
         }
 
-        /* Content Pieces */
+        /* Content Pieces Cards */
         .pieces-container {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
             margin-top: 8px;
+            max-width: 100%;
         }
 
         .piece-card {
@@ -240,234 +248,98 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
+        .piece-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
         .piece-number {
             background: var(--primary-color);
             color: white;
             font-size: 11px;
             font-weight: 600;
-            padding: 4px 10px;
+            padding: 2px 8px;
             border-radius: 10px;
-            display: inline-block;
-            margin-bottom: 8px;
         }
 
         .piece-title {
             font-weight: 600;
-            font-size: 16px;
+            font-size: 15px;
             color: #18181b;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
+            line-height: 1.4;
         }
 
+        .piece-preview,
         .piece-content {
             font-size: 14px;
             color: #52525b;
             line-height: 1.6;
             margin-bottom: 12px;
             white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: none;
+            /* No height limit - show full content */
+            overflow: visible;
+        }
+
+        .piece-content {
             background: #fafafa;
             padding: 12px;
             border-radius: 8px;
             border-left: 3px solid var(--primary-color);
         }
 
-        .piece-image {
-            width: 100%;
-            border-radius: 8px;
-            margin: 12px 0;
-            border: 1px solid var(--border-color);
-        }
-
         .piece-meta {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-top: 12px;
-        }
-
-        .piece-badge {
-            font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 6px;
+            margin-top: 8px;
         }
 
         .piece-hashtags {
-            background: #eff6ff;
+            font-size: 12px;
             color: #3b82f6;
+            background: #eff6ff;
+            padding: 4px 8px;
+            border-radius: 6px;
         }
 
         .piece-cta {
+            font-size: 12px;
+            color: #059669;
             background: #ecfdf5;
-            color: var(--success-color);
-        }
-
-        .piece-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .piece-actions button {
-            flex: 1;
-            padding: 8px 12px;
+            padding: 4px 8px;
             border-radius: 6px;
-            border: 1px solid var(--border-color);
-            background: white;
-            cursor: pointer;
+        }
+
+        .pieces-summary {
             font-size: 13px;
-            transition: all 0.2s;
-        }
-
-        .piece-actions button.approve {
-            background: #ecfdf5;
-            color: var(--success-color);
-            border-color: #a7f3d0;
-        }
-
-        .piece-actions button.regenerate {
-            background: #fef2f2;
-            color: var(--danger-color);
-            border-color: #fecaca;
-        }
-
-        /* Carousel Specific */
-        .carousel-container {
-            background: #fafafa;
-            border-radius: 12px;
-            padding: 16px;
-            margin: 16px 0;
-        }
-
-        .carousel-slides {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            padding: 12px 0;
-            scroll-snap-type: x mandatory;
-        }
-
-        .carousel-slide {
-            flex: 0 0 280px;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px;
-            scroll-snap-align: start;
-        }
-
-        .carousel-slide img {
-            width: 100%;
-            border-radius: 6px;
-            margin-bottom: 8px;
-        }
-
-        .carousel-slide-number {
-            font-size: 11px;
-            font-weight: 600;
             color: #71717a;
-            margin-bottom: 8px;
-        }
-
-        .carousel-slide-text {
-            font-size: 13px;
-            color: #3f3f46;
-            line-height: 1.4;
-        }
-
-        /* Blog Post Specific */
-        .blog-container {
-            margin: 16px 0;
-        }
-
-        .blog-hero {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 12px;
-            margin-bottom: 16px;
-        }
-
-        .blog-section {
-            margin-bottom: 20px;
-        }
-
-        .blog-section-title {
-            font-weight: 600;
-            font-size: 15px;
-            color: #18181b;
-            margin-bottom: 8px;
-        }
-
-        .blog-section-content {
-            font-size: 14px;
-            color: #52525b;
-            line-height: 1.7;
-        }
-
-        .blog-seo {
-            background: #fafafa;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 16px;
-        }
-
-        .blog-seo-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #71717a;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        .blog-seo-value {
-            font-size: 13px;
-            color: #3f3f46;
-        }
-
-        /* Scheduling UI */
-        .scheduling-panel {
-            background: #fafafa;
-            padding: 16px;
-            border-radius: 8px;
             margin-top: 12px;
-        }
-
-        .scheduling-panel label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: #3f3f46;
-            margin-bottom: 8px;
-        }
-
-        .scheduling-panel input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .debug-panel {
-            font-size: 10px;
-            color: #ccc;
-            text-align: center;
-            margin-top: 5px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
         }
     </style>
 </head>
 
 <body>
+
     <div id="app">
         <header>
             <div style="display: flex; align-items: center; gap: 12px;">
-                <span>Content Factory</span>
+                <span>Content Intake</span>
                 <span id="status-indicator">Ready</span>
-                <span id="language-badge" class="language-badge" style="display: none;"></span>
             </div>
-            <button id="new-job-btn" class="new-job-btn">Start new job</button>
+            <button id="new-job-btn" class="new-job-btn" title="Start a fresh conversation session">Start new
+                job</button>
         </header>
 
-        <div id="chat-history"></div>
+        <div id="chat-history">
+            <!-- Messages go here -->
+        </div>
 
         <div class="typing-indicator" id="typing-indicator">
             <span></span><span></span><span></span>
@@ -484,19 +356,18 @@
     </div>
 
     <script>
-        // Configuration
+        // --- CONFIGURATION test ---
+        // REPLACE THIS URL WITH YOUR ACTUAL N8Ng WEBHOOK URL test
         const API_URL = "/api/intake";
 
-        // State
+        // --- STATE ---
         let state = {
             requestId: null,
             isWaiting: false,
-            isComplete: false,
-            currentLanguage: null,
-            contentType: null
+            isComplete: false
         };
 
-        // DOM Elements
+        // --- DOM ELEMENTS ---
         const chatHistory = document.getElementById('chat-history');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
@@ -505,24 +376,57 @@
         const statusIndicator = document.getElementById('status-indicator');
         const debugId = document.getElementById('debug-id');
         const newJobBtn = document.getElementById('new-job-btn');
-        const languageBadge = document.getElementById('language-badge');
 
-        // Init
+        // --- INITIALIZATION ---
         function init() {
+            console.log('App initialized.');
+            // If we wanted to persist across reloads, we'd check sessionStorage here.
+            // For now, per requirements, just memory.
+
+            // Initial ping to n8n to start the conversation?
+            // Requirement says: "If no request_id: Create one, Ask: What are we promoting?"
+            // This implies the user initiates OR the page load initiates.
+            // Let's assume the user sends "Hi" or we auto-trigger a 'start' event.
+            // To make it smooth, let's send a silent 'init' payload or just wait for user.
+            // Actually, "Chat-like" usually waits for user, BUT "Guided form" often starts with bot question.
+            // Let's trigger an empty message to start the flow so the bot asks the first question.
+            // Initial ping to n8n to start the conversation?
+            // Requirement says: "If no request_id: Create one, Ask: What are we promoting?"
+            // This implies the user initiates OR the page load initiates.
+            // Let's assume the user sends "Hi" or we auto-trigger a 'start' event.
+            // To make it smooth, let's send a silent 'init' payload or just wait for user.
+            // Actually, "Chat-like" usually waits for user, BUT "Guided form" often starts with bot question.
+            // Let's trigger an empty message to start the flow so the bot asks the first question.
+
+            // Check if we already have messages in the session? (Ideally we'd load history, but for now we just start fresh or keep going)
+            // If we wanted to "keep chatting", we shouldn't wipe the screen on reload, but we implement that later if needed.
+            // For now, persistent session ID means the BACKEND knows the context. 
+            // The frontend might look fresh on reload unless we persist messages (current scope: just ID persistence).
+
             const currentSession = getSessionId();
+            console.log("Current Session:", currentSession);
             debugId.innerText = `Session: ${currentSession.slice(0, 8)}...`;
-            appendMessage('bot', '¡Hola! ¿Qué producto o servicio estamos promoviendo hoy?\n\nHi! What product or service are we promoting today?');
+
+            appendMessage('bot', '¿Qué estamos promoviendo hoy?');
+
         }
 
-        // Core message sending
-        async function sendMessage(text) {
-            if (state.isWaiting || !text?.trim()) return;
+        // --- CORE LOGIC ---
 
-            appendMessage('user', text);
-            userInput.value = '';
-            clearOptions();
+        async function sendMessage(text, isHiddenInit = false) {
+            if (state.isWaiting && !isHiddenInit) return;
+
+            if (!isHiddenInit) {
+                // Render User Message
+                appendMessage('user', text);
+                userInput.value = '';
+                clearOptions();
+            }
+
+            // Update UI State
             setLoading(true);
 
+            // Prepare Payload
             const payload = {
                 user_id: getUserId(),
                 session_id: getSessionId(),
@@ -531,42 +435,117 @@
             };
 
             try {
+                console.log('Sending payload:', payload);
+
+                // In a real scenario, this fetch would go to n8n.
+                // For DEMO purposes without a live backend, I'lladd a simplified mock mode check
+                // BUT strict requirements say "Every user action sends data to n8n". 
+                // So we default to fetch.
+
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
-                if (!response.ok) throw new Error(`Server error: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
 
                 const data = await response.json();
                 handleResponse(data);
+
             } catch (error) {
-                console.error('API Error:', error);
-                appendMessage('bot', `⚠️ Error: ${error.message}`);
+                console.error('Webhook Error:', error);
+                // Fallback for demo if fetch fails (likely CORS or no server)
+                appendMessage('bot', `⚠️ Error connecting to n8n: ${error.message}. <br><br>Make sure n8n is running and CORS is configured, or check the console.`);
                 setLoading(false);
             }
         }
 
-        // Handle API response
-        function handleResponse(data) {
-            console.log('Response:', data);
+        //userid
+        function getUserId() {
+            let id = localStorage.getItem("cf_user_id");
+            if (!id) {
+                id = (crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+                localStorage.setItem("cf_user_id", id);
+            }
+            return id;
+        }
 
+        function fallbackUUID() {
+            // RFC4122 v4-ish fallback
+            const buf = new Uint8Array(16);
+            crypto.getRandomValues(buf);
+            buf[6] = (buf[6] & 0x0f) | 0x40;
+            buf[8] = (buf[8] & 0x3f) | 0x80;
+            const hex = [...buf].map(b => b.toString(16).padStart(2, "0")).join("");
+            return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+        }
+
+        // --- SESSION LOGIC ---
+        function getSessionId() {
+            let id = localStorage.getItem("cf_session_id");
+            if (!id) {
+                id = (crypto?.randomUUID?.() ?? fallbackUUID());
+                localStorage.setItem("cf_session_id", id);
+            }
+            return id;
+        }
+
+        function startNewJob() {
+            if (!confirm("Are you sure you want to start a new job? This will clear the current conversation.")) return;
+
+            // Generate new session ID
+            const newId = (crypto?.randomUUID?.() ?? fallbackUUID());
+            localStorage.setItem("cf_session_id", newId);
+
+            // Reset state
+            state.requestId = null;
+            state.isWaiting = false;
+            state.isComplete = false;
+
+            // Clear UI
+            chatHistory.innerHTML = '';
+            userInput.value = '';
+            clearOptions();
+
+            // Update Debug info
+            debugId.innerText = `Session: ${newId.slice(0, 8)}...`;
+
+            console.log("Started new job/session:", newId);
+
+            // Re-initialize
+            appendMessage('bot', '¿Qué estamos promoviendo hoy?');
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            statusIndicator.innerText = "Ready";
+        }
+
+        function handleResponse(data) {
+            console.log('Received response:', data);
+
+            // Log debug info if present
+            if (data._debug) {
+                console.log('=== DEBUG INFO ===');
+                console.log('Raw message:', data._debug.rawMessage);
+                console.log('Normalized message:', data._debug.normalizedMessage);
+                console.log('isApproveCommand:', data._debug.isApproveCommand);
+                console.log('isRegenerateCommand:', data._debug.isRegenerateCommand);
+                console.log('isChangeRequest:', data._debug.isChangeRequest);
+                console.log('Matched condition:', data._debug.matchedCondition);
+                console.log('New state:', data._debug.newState);
+                console.log('==================');
+            }
+            console.log('Current state:', data.current_state);
+
+            // 1. Update Request ID
             if (data.request_id) {
                 state.requestId = data.request_id;
-                debugId.innerText = `ID: ${data.request_id.slice(0, 8)}...`;
+                debugId.innerText = `ID: ${state.requestId}`;
             }
 
-            if (data.language) {
-                state.currentLanguage = data.language;
-                languageBadge.innerText = data.language.toUpperCase();
-                languageBadge.style.display = 'inline-block';
-            }
-
-            if (data.content_type) {
-                state.contentType = data.content_type;
-            }
-
+            // 2. Update Completion State
             if (data.is_complete) {
                 state.isComplete = true;
                 statusIndicator.innerText = "Completed";
@@ -574,122 +553,37 @@
                 sendBtn.disabled = true;
             }
 
+            // 3. Render Bot Message
             if (data.bot_message) {
                 appendMessage('bot', data.bot_message);
             }
 
-            // Render content pieces
-            if (data.showPieces && data.pieces) {
-                if (state.contentType === 'carousel') {
-                    renderCarousel(data.pieces);
-                } else if (state.contentType === 'blog') {
-                    renderBlogPost(data.pieces[0]); // Blog is single piece
-                } else {
-                    renderPieces(data.pieces);
-                }
+            // 4. Handle Pieces Display (for TEXT_APPROVAL state)
+            if (data.showPieces && data.pieces && Array.isArray(data.pieces)) {
+                renderPieces(data.pieces);
             }
 
-            // Render quick replies
-            if (data.quickReplies && data.quickReplies.length > 0) {
+            // 5. Handle Images Display (NEW - for IMAGE_APPROVAL state)
+            if (data.showImages && data.images && Array.isArray(data.images)) {
+                renderImages(data.images);
+            }
+
+            // 6. Handle Quick Replies (CRITICAL FIX - check both fields)
+            if (data.quickReplies && Array.isArray(data.quickReplies) && data.quickReplies.length > 0) {
                 renderOptions(data.quickReplies);
+            } else if (data.options && Array.isArray(data.options) && data.options.length > 0) {
+                renderOptions(data.options);
             }
 
             setLoading(false);
         }
 
-        // Render standard content pieces (LinkedIn, Single Image)
-        function renderPieces(pieces) {
-            const container = document.createElement('div');
-            container.classList.add('pieces-container');
+        // --- UI HELPERS ---
 
-            pieces.forEach((piece, index) => {
-                const card = document.createElement('div');
-                card.classList.add('piece-card');
-
-                card.innerHTML = `
-                    <div class="piece-number">Piece ${piece.number || (index + 1)}</div>
-                    ${piece.title ? `<div class="piece-title">${piece.title}</div>` : ''}
-                    ${piece.image_url ? `<img src="${piece.image_url}" class="piece-image" alt="Content image">` : ''}
-                    ${piece.content ? `<div class="piece-content">${piece.content.replace(/\n/g, '<br>')}</div>` : ''}
-                    <div class="piece-meta">
-                        ${piece.hashtags ? `<span class="piece-badge piece-hashtags">${piece.hashtags}</span>` : ''}
-                        ${piece.cta ? `<span class="piece-badge piece-cta">CTA: ${piece.cta}</span>` : ''}
-                    </div>
-                    <div class="piece-actions">
-                        <button class="approve" onclick="approvePiece(${piece.number})">✓ Approve</button>
-                        <button class="regenerate" onclick="regeneratePiece(${piece.number})">↻ Regenerate</button>
-                    </div>
-                `;
-
-                container.appendChild(card);
-            });
-
-            chatHistory.appendChild(container);
-            scrollToBottom();
-        }
-
-        // Render carousel
-        function renderCarousel(slides) {
-            const container = document.createElement('div');
-            container.classList.add('carousel-container');
-
-            const slidesContainer = document.createElement('div');
-            slidesContainer.classList.add('carousel-slides');
-
-            slides.forEach((slide, index) => {
-                const slideEl = document.createElement('div');
-                slideEl.classList.add('carousel-slide');
-
-                slideEl.innerHTML = `
-                    <div class="carousel-slide-number">Slide ${slide.number || (index + 1)}</div>
-                    ${slide.image_url ? `<img src="${slide.image_url}" alt="Slide ${index + 1}">` : ''}
-                    <div class="carousel-slide-text">${slide.content || slide.text || ''}</div>
-                `;
-
-                slidesContainer.appendChild(slideEl);
-            });
-
-            container.appendChild(slidesContainer);
-            chatHistory.appendChild(container);
-            scrollToBottom();
-        }
-
-        // Render blog post
-        function renderBlogPost(post) {
-            const container = document.createElement('div');
-            container.classList.add('blog-container');
-
-            container.innerHTML = `
-                ${post.hero_image ? `<img src="${post.hero_image}" class="blog-hero" alt="Hero image">` : ''}
-                <div class="piece-title">${post.title || 'Blog Post'}</div>
-                ${post.sections ? post.sections.map(section => `
-                    <div class="blog-section">
-                        <div class="blog-section-title">${section.title}</div>
-                        <div class="blog-section-content">${section.content}</div>
-                    </div>
-                `).join('') : `<div class="piece-content">${post.content}</div>`}
-                ${post.meta ? `
-                    <div class="blog-seo">
-                        <div class="blog-seo-label">SEO Meta Title</div>
-                        <div class="blog-seo-value">${post.meta.title}</div>
-                        <div class="blog-seo-label" style="margin-top: 8px;">Meta Description</div>
-                        <div class="blog-seo-value">${post.meta.description}</div>
-                    </div>
-                ` : ''}
-                <div class="piece-actions">
-                    <button class="approve" onclick="sendMessage('Approve')">✓ Approve</button>
-                    <button class="regenerate" onclick="sendMessage('Regenerate')">↻ Regenerate</button>
-                </div>
-            `;
-
-            chatHistory.appendChild(container);
-            scrollToBottom();
-        }
-
-        // UI Helpers
         function appendMessage(sender, text) {
             const msgDiv = document.createElement('div');
             msgDiv.classList.add('message', sender);
+            // Allow basic HTML line breaks
             msgDiv.innerHTML = text.replace(/\n/g, '<br>');
             chatHistory.appendChild(msgDiv);
             scrollToBottom();
@@ -701,27 +595,226 @@
                 const btn = document.createElement('button');
                 btn.classList.add('option-btn');
                 btn.innerText = opt;
+                // Populate input field instead of auto-submitting
+                // User can then edit or add to the message before sending
                 btn.onclick = () => {
                     userInput.value = opt;
                     userInput.focus();
+                    // Visual feedback that option was selected
                     btn.style.background = 'var(--primary-color)';
                     btn.style.color = 'white';
                 };
                 optionsContainer.appendChild(btn);
             });
+            scrollToBottom();
         }
 
         function clearOptions() {
             optionsContainer.innerHTML = '';
         }
 
+        function renderPieces(pieces) {
+            if (!pieces || !Array.isArray(pieces) || pieces.length === 0) return;
+
+            const container = document.createElement('div');
+            container.classList.add('pieces-container');
+
+            pieces.forEach((piece, index) => {
+                const card = document.createElement('div');
+                card.classList.add('piece-card');
+
+                // Header with piece number
+                const header = document.createElement('div');
+                header.classList.add('piece-header');
+                const numberBadge = document.createElement('span');
+                numberBadge.classList.add('piece-number');
+                numberBadge.innerText = `Piece ${piece.number || (index + 1)}`;
+                header.appendChild(numberBadge);
+                card.appendChild(header);
+
+                // Title
+                if (piece.title) {
+                    const title = document.createElement('div');
+                    title.classList.add('piece-title');
+                    title.innerText = piece.title;
+                    card.appendChild(title);
+                }
+
+                // IMAGE DISPLAY (NEW)
+                if (piece.image_url) {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.classList.add('piece-image-container');
+                    imageContainer.style.marginBottom = '12px';
+                    imageContainer.style.borderRadius = '8px';
+                    imageContainer.style.overflow = 'hidden';
+                    imageContainer.style.border = '1px solid var(--border-color)';
+                    imageContainer.style.backgroundColor = '#fafafa';
+
+                    const img = document.createElement('img');
+                    img.src = piece.image_url;
+                    img.alt = piece.title || 'Generated image';
+                    img.style.width = '100%';
+                    img.style.height = 'auto';
+                    img.style.display = 'block';
+                    img.onerror = () => {
+                        imageContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#71717a;">Image loading...</div>';
+                    };
+
+                    imageContainer.appendChild(img);
+                    card.appendChild(imageContainer);
+                }
+
+                // Full content (or preview as fallback)
+                const contentText = piece.content || piece.preview || '';
+                if (contentText) {
+                    const content = document.createElement('div');
+                    content.classList.add('piece-content');
+                    // Preserve line breaks in the content
+                    content.innerHTML = contentText.replace(/\n/g, '<br>');
+                    card.appendChild(content);
+                }
+
+                // Meta info (hashtags, CTA)
+                const meta = document.createElement('div');
+                meta.classList.add('piece-meta');
+
+                if (piece.hashtags) {
+                    const hashtags = document.createElement('span');
+                    hashtags.classList.add('piece-hashtags');
+                    hashtags.innerText = piece.hashtags;
+                    meta.appendChild(hashtags);
+                }
+
+                if (piece.cta) {
+                    const cta = document.createElement('span');
+                    cta.classList.add('piece-cta');
+                    cta.innerText = `CTA: ${piece.cta}`;
+                    meta.appendChild(cta);
+                }
+
+                if (meta.children.length > 0) {
+                    card.appendChild(meta);
+                }
+
+                container.appendChild(card);
+            });
+
+            chatHistory.appendChild(container);
+            scrollToBottom();
+        }
+
+        // NEW: Render images for approval
+        function renderImages(images) {
+            if (!images || !Array.isArray(images) || images.length === 0) return;
+
+            const container = document.createElement('div');
+            container.classList.add('images-container');
+            container.style.display = 'grid';
+            container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(250px, 1fr))';
+            container.style.gap = '16px';
+            container.style.marginTop = '16px';
+            container.style.marginBottom = '16px';
+
+            images.forEach((image, index) => {
+                const card = document.createElement('div');
+                card.classList.add('image-card');
+                card.style.background = '#ffffff';
+                card.style.border = '1px solid var(--border-color)';
+                card.style.borderRadius = '12px';
+                card.style.padding = '12px';
+                card.style.cursor = 'pointer';
+                card.style.transition = 'all 0.2s';
+
+                card.onmouseover = () => {
+                    card.style.borderColor = 'var(--primary-color)';
+                    card.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                };
+                card.onmouseout = () => {
+                    card.style.borderColor = 'var(--border-color)';
+                    card.style.boxShadow = 'none';
+                };
+
+                // Image number badge
+                const badge = document.createElement('div');
+                badge.style.fontSize = '11px';
+                badge.style.fontWeight = '600';
+                badge.style.marginBottom = '8px';
+                badge.style.color = '#71717a';
+                badge.innerText = `Image ${image.piece_number || (index + 1)}`;
+                card.appendChild(badge);
+
+                // Image
+                const img = document.createElement('img');
+                img.src = image.image_url;
+                img.alt = `Generated image ${index + 1}`;
+                img.style.width = '100%';
+                img.style.height = 'auto';
+                img.style.borderRadius = '6px';
+                img.style.marginBottom = '8px';
+                img.style.backgroundColor = '#fafafa';
+                img.onerror = () => {
+                    img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f4f4f5" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" fill="%2371717a" font-size="14"%3ELoading...%3C/text%3E%3C/svg%3E';
+                };
+                card.appendChild(img);
+
+                // Action buttons
+                const actions = document.createElement('div');
+                actions.style.display = 'flex';
+                actions.style.gap = '8px';
+                actions.style.marginTop = '8px';
+
+                const approveBtn = document.createElement('button');
+                approveBtn.classList.add('option-btn');
+                approveBtn.innerText = '✓ Approve';
+                approveBtn.style.flex = '1';
+                approveBtn.style.fontSize = '12px';
+                approveBtn.style.background = '#ecfdf5';
+                approveBtn.style.color = '#059669';
+                approveBtn.style.border = '1px solid #a7f3d0';
+                approveBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    userInput.value = `Approve image ${image.piece_number || (index + 1)}`;
+                    sendMessage(userInput.value);
+                };
+
+                const regenBtn = document.createElement('button');
+                regenBtn.classList.add('option-btn');
+                regenBtn.innerText = '↻ Regenerate';
+                regenBtn.style.flex = '1';
+                regenBtn.style.fontSize = '12px';
+                regenBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    userInput.value = `Regenerate image ${image.piece_number || (index + 1)}`;
+                    userInput.focus();
+                };
+
+                actions.appendChild(approveBtn);
+                actions.appendChild(regenBtn);
+                card.appendChild(actions);
+
+                container.appendChild(card);
+            });
+
+            chatHistory.appendChild(container);
+            scrollToBottom();
+        }
+
         function setLoading(isLoading) {
             state.isWaiting = isLoading;
-            typingIndicator.style.display = isLoading ? 'block' : 'none';
-            userInput.disabled = isLoading || state.isComplete;
-            sendBtn.disabled = isLoading || state.isComplete;
-            statusIndicator.innerText = isLoading ? "Thinking..." : state.isComplete ? "Completed" : "Online";
-            if (!isLoading && !state.isComplete) userInput.focus();
+            if (isLoading) {
+                typingIndicator.style.display = 'block';
+                userInput.disabled = true;
+                sendBtn.disabled = true;
+                statusIndicator.innerText = "Thinking...";
+            } else {
+                typingIndicator.style.display = 'none';
+                if (!state.isComplete) {
+                    userInput.disabled = false;
+                    sendBtn.disabled = false;
+                    statusIndicator.innerText = "Online";
+                    userInput.focus();
+                }
+            }
             scrollToBottom();
         }
 
@@ -731,70 +824,8 @@
             });
         }
 
-        // Session Management
-        function getUserId() {
-            let id = localStorage.getItem("cf_user_id");
-            if (!id) {
-                id = crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-                localStorage.setItem("cf_user_id", id);
-            }
-            return id;
-        }
+        // --- EVENT LISTENERS ---
 
-        function getSessionId() {
-            let id = localStorage.getItem("cf_session_id");
-            if (!id) {
-                id = crypto?.randomUUID?.() || fallbackUUID();
-                localStorage.setItem("cf_session_id", id);
-            }
-            return id;
-        }
-
-        function fallbackUUID() {
-            const buf = new Uint8Array(16);
-            crypto.getRandomValues(buf);
-            buf[6] = (buf[6] & 0x0f) | 0x40;
-            buf[8] = (buf[8] & 0x3f) | 0x80;
-            const hex = [...buf].map(b => b.toString(16).padStart(2, "0")).join("");
-            return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-        }
-
-        function startNewJob() {
-            if (!confirm("Start a new job? This will clear the current conversation.")) return;
-
-            const newId = crypto?.randomUUID?.() || fallbackUUID();
-            localStorage.setItem("cf_session_id", newId);
-
-            state = {
-                requestId: null,
-                isWaiting: false,
-                isComplete: false,
-                currentLanguage: null,
-                contentType: null
-            };
-
-            chatHistory.innerHTML = '';
-            userInput.value = '';
-            clearOptions();
-            languageBadge.style.display = 'none';
-            debugId.innerText = `Session: ${newId.slice(0, 8)}...`;
-            userInput.disabled = false;
-            sendBtn.disabled = false;
-            statusIndicator.innerText = "Ready";
-
-            init();
-        }
-
-        // Piece Actions
-        window.approvePiece = function (pieceNum) {
-            sendMessage(`Approve piece ${pieceNum}`);
-        };
-
-        window.regeneratePiece = function (pieceNum) {
-            sendMessage(`Regenerate piece ${pieceNum}`);
-        };
-
-        // Event Listeners
         sendBtn.addEventListener('click', () => {
             const text = userInput.value.trim();
             if (text) sendMessage(text);
@@ -811,6 +842,7 @@
 
         // Start
         init();
+
     </script>
 </body>
 
