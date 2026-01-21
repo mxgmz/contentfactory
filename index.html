@@ -248,6 +248,20 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
+        .piece-card.approved {
+            background-color: #ecfdf5;
+            border-color: #059669;
+        }
+
+        .piece-card.approved .piece-number {
+            background-color: #059669;
+        }
+
+        .piece-card.approved .piece-content {
+            background-color: #ffffff;
+            border-left-color: #059669;
+        }
+
         .piece-header {
             display: flex;
             justify-content: space-between;
@@ -622,6 +636,10 @@
             pieces.forEach((piece, index) => {
                 const card = document.createElement('div');
                 card.classList.add('piece-card');
+
+                if (piece.approved) {
+                    card.classList.add('approved');
+                }
 
                 // Header with piece number
                 const header = document.createElement('div');
