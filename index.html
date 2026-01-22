@@ -329,6 +329,171 @@
             border-radius: 6px;
         }
 
+        /* Modal & Previews */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: #fff;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            border-radius: 12px;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            color: #71717a;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .modal-close:hover {
+            color: #000;
+        }
+
+        /* LinkedIn Preview Styles */
+        .preview-linkedin {
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Lucida Grande", Helvetica, Arial, sans-serif;
+            background: #fff;
+            color: rgba(0, 0, 0, 0.9);
+            font-size: 14px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .li-header {
+            display: flex;
+            padding: 12px 16px 0;
+            margin-bottom: 8px;
+        }
+
+        .li-avatar {
+            width: 48px;
+            height: 48px;
+            background: #e2e8f0;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .li-meta {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            line-height: 1.2;
+        }
+
+        .li-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.9);
+        }
+
+        .li-sub {
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        .li-body {
+            padding: 0 16px;
+            white-space: pre-wrap;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .li-footer {
+            padding: 4px 16px 8px;
+            border-top: 1px solid #e5e5e5;
+            margin-top: 12px;
+        }
+
+        .li-actions {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 4px;
+        }
+
+        .li-action {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 8px;
+            color: rgba(0, 0, 0, 0.6);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .li-action:hover {
+            background: rgba(0, 0, 0, 0.08);
+        }
+
+        /* Blog Preview Styles */
+        .preview-blog {
+            padding: 40px;
+            font-family: "Georgia", "Cambria", "Times New Roman", serif;
+            color: #292929;
+            line-height: 1.8;
+            font-size: 18px;
+        }
+
+        .blog-title {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        .blog-meta {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            color: #757575;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .blog-body h1,
+        .blog-body h2,
+        .blog-body h3 {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        .blog-body ul,
+        .blog-body ol {
+            margin-bottom: 1.5em;
+        }
+
         .pieces-summary {
             font-size: 13px;
             color: #71717a;
@@ -336,10 +501,38 @@
             padding-top: 12px;
             border-top: 1px solid var(--border-color);
         }
+
+        .preview-btn {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            color: #18181b;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .preview-btn:hover {
+            border-color: var(--primary-color);
+            background-color: #fafafa;
+        }
     </style>
 </head>
 
 <body>
+
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
 
     <div id="app">
         <header>
@@ -682,15 +875,34 @@
                     card.appendChild(imageContainer);
                 }
 
-                // Full content (or preview as fallback)
+                // Full content vs Preview Button
                 const contentText = piece.content || piece.preview || '';
-                if (contentText) {
+
+                // Check if this piece should have a platform preview
+                const hasPlatformPreview = piece.platform && (piece.platform.toLowerCase().includes('linkedin') || piece.platform.toLowerCase().includes('blog'));
+
+                if (hasPlatformPreview) {
+                    const previewContainer = document.createElement('div');
+                    const previewBtn = document.createElement('button');
+                    previewBtn.classList.add('preview-btn');
+                    // Icon + Text
+                    previewBtn.innerHTML = `👁️ Visualize ${piece.platform} Preview`;
+                    previewBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        openPreviewModal(piece);
+                    };
+                    previewContainer.appendChild(previewBtn);
+                    card.appendChild(previewContainer);
+                } else if (contentText) {
+                    // Standard text display for generic pieces
                     const content = document.createElement('div');
                     content.classList.add('piece-content');
                     // Preserve line breaks in the content
                     content.innerHTML = contentText.replace(/\n/g, '<br>');
                     card.appendChild(content);
                 }
+
+                // Meta info (hashtags, CTA)
 
                 // Meta info (hashtags, CTA)
                 const meta = document.createElement('div');
@@ -719,6 +931,129 @@
 
             chatHistory.appendChild(container);
             scrollToBottom();
+        }
+
+        // --- PREVIEW MODAL LOGIC ---
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalBody = document.getElementById('modal-body');
+
+        function openPreviewModal(piece) {
+            const platform = (piece.platform || '').toLowerCase();
+            modalBody.innerHTML = ''; // Clear previous
+
+            if (platform.includes('linkedin')) {
+                modalBody.appendChild(createLinkedInPreview(piece));
+            } else if (platform.includes('blog')) {
+                modalBody.appendChild(createBlogPreview(piece));
+            } else {
+                // Fallback
+                const fallback = document.createElement('div');
+                fallback.style.padding = '20px';
+                fallback.innerText = piece.content;
+                modalBody.appendChild(fallback);
+            }
+
+            modalOverlay.classList.add('active');
+        }
+
+        function closeModal() {
+            modalOverlay.classList.remove('active');
+        }
+
+        // Close on outside click
+        modalOverlay.onclick = (e) => {
+            if (e.target === modalOverlay) closeModal();
+        };
+
+        function createLinkedInPreview(piece) {
+            const container = document.createElement('div');
+            container.classList.add('preview-linkedin');
+
+            // Header
+            container.innerHTML = `
+                <div class="li-header">
+                    <div class="li-avatar">
+                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(piece.icp || 'User User')}&background=random" style="width:100%;height:100%;border-radius:50%;">
+                    </div>
+                    <div class="li-meta">
+                        <div class="li-name">Growth Manager</div>
+                        <div class="li-sub">Posting about ${piece.hashtags ? piece.hashtags.split(' ')[0] : '#industry'} • Now • 🌐</div>
+                    </div>
+                    <div style="margin-left: auto; color: rgba(0,0,0,0.6);">•••</div>
+                </div>
+                <div class="li-body">
+                    ${formatLiContent(piece.content)}
+                </div>
+                <div class="li-footer">
+                    <div class="li-actions">
+                         <div class="li-action">👍 Like</div>
+                         <div class="li-action">💬 Comment</div>
+                         <div class="li-action">🔁 Repost</div>
+                         <div class="li-action">🚀 Send</div>
+                    </div>
+                </div>
+            `;
+            return container;
+        }
+
+        function createBlogPreview(piece) {
+            const container = document.createElement('div');
+            container.classList.add('preview-blog');
+
+            const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            container.innerHTML = `
+                <div class="blog-title">${piece.title || 'Untitled Post'}</div>
+                <div class="blog-meta">
+                    <span>By Content Team</span>
+                    <span>•</span>
+                    <span>${date}</span>
+                    <span>•</span>
+                    <span>5 min read</span>
+                </div>
+                <div class="blog-body">
+                    ${formatBlogContent(piece.content)}
+                </div>
+            `;
+            // Simple MD formatting for blog
+            return container;
+        }
+
+        function formatLiContent(text) {
+            if (!text) return '';
+            // Convert newlines to breaks, bold to strong
+            let html = text.replace(/\n/g, '<br>');
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Highlight hashtags
+            html = html.replace(/#([\wñáéíóú]+)/gi, '<a href="#" style="color:#0a66c2;text-decoration:none;font-weight:600;">#$1</a>');
+            return html;
+        }
+
+        function formatBlogContent(text) {
+            if (!text) return '';
+            // Basic Markdown parser
+            let lines = text.split('\n');
+            let html = '';
+
+            lines.forEach(line => {
+                if (line.startsWith('### ')) {
+                    html += `<h3>${line.replace('### ', '')}</h3>`;
+                } else if (line.startsWith('## ')) {
+                    html += `<h2>${line.replace('## ', '')}</h2>`;
+                } else if (line.startsWith('# ')) {
+                    html += `<h1>${line.replace('# ', '')}</h1>`;
+                } else if (line.startsWith('- ')) {
+                    html += `<li>${line.replace('- ', '')}</li>`;
+                } else if (line.trim() === '') {
+                    html += '<br>';
+                } else {
+                    let p = line;
+                    p = p.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    p = p.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                    html += `<p>${p}</p>`;
+                }
+            });
+            return html;
         }
 
         // NEW: Render images for approval
