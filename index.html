@@ -114,7 +114,7 @@
             gap: 10px;
         }
 
-        input[type="text"] {
+        #user-input {
             flex: 1;
             padding: 12px;
             border: 1px solid var(--border-color);
@@ -122,9 +122,15 @@
             font-size: 16px;
             outline: none;
             transition: border-color 0.2s;
+            resize: none;
+            overflow-y: hidden;
+            min-height: 44px;
+            /* Approximate height of single line */
+            max-height: 200px;
+            font-family: inherit;
         }
 
-        input[type="text"]:focus {
+        #user-input:focus {
             border-color: var(--primary-color);
         }
 
@@ -661,7 +667,7 @@
             <div id="staged-container"></div>
             <div id="options-container"></div>
             <div class="input-row">
-                <input type="text" id="user-input" placeholder="Type your answer..." autocomplete="off">
+                <textarea id="user-input" placeholder="Type your answer..." rows="1"></textarea>
                 <button id="send-btn" class="send-btn">Send</button>
             </div>
             <div class="debug-panel" id="debug-id">No Session</div>
@@ -676,7 +682,7 @@
         // --- STATE ---
         let state = {
             requestId: null,
-            isWaiting: false,
+            activeRequests: 0,
             isComplete: false
         };
         let stagedApprovals = [];
@@ -728,17 +734,17 @@
         // --- CORE LOGIC ---
 
         async function sendMessage(text, isHiddenInit = false) {
-            if (state.isWaiting && !isHiddenInit) return;
 
             if (!isHiddenInit) {
                 // Render User Message
                 appendMessage('user', text);
                 userInput.value = '';
+                userInput.style.height = 'auto';
                 clearOptions();
             }
 
             // Update UI State
-            setLoading(true);
+            updateLoadingState(true);
 
             // Prepare Payload
             const payload = {
@@ -773,7 +779,7 @@
                 console.error('Webhook Error:', error);
                 // Fallback for demo if fetch fails (likely CORS or no server)
                 appendMessage('bot', `⚠️ Error connecting to n8n: ${error.message}. <br><br>Make sure n8n is running and CORS is configured, or check the console.`);
-                setLoading(false);
+                updateLoadingState(false);
             }
         }
 
@@ -816,7 +822,7 @@
 
             // Reset state
             state.requestId = null;
-            state.isWaiting = false;
+            state.activeRequests = 0;
             state.isComplete = false;
 
             // Clear UI
@@ -889,7 +895,7 @@
                 renderOptions(data.options);
             }
 
-            setLoading(false);
+            updateLoadingState(false);
         }
 
         // --- UI HELPERS ---
@@ -1468,20 +1474,25 @@
             scrollToBottom();
         }
 
-        function setLoading(isLoading) {
-            state.isWaiting = isLoading;
+
+
+        // --- UI HELPERS ---
+
+        function updateLoadingState(isLoading) {
             if (isLoading) {
+                state.activeRequests++;
+            } else {
+                state.activeRequests = Math.max(0, state.activeRequests - 1);
+            }
+
+            if (state.activeRequests > 0) {
                 typingIndicator.style.display = 'block';
-                userInput.disabled = true;
-                sendBtn.disabled = true;
                 statusIndicator.innerText = "Thinking...";
+                // Concurrent: Do NOT disable input
             } else {
                 typingIndicator.style.display = 'none';
                 if (!state.isComplete) {
-                    userInput.disabled = false;
-                    sendBtn.disabled = false;
                     statusIndicator.innerText = "Online";
-                    userInput.focus();
                 }
             }
             scrollToBottom();
@@ -1571,12 +1582,16 @@
             if (text) sendMessage(text);
         });
 
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                // Determine if we should send. 
-                // Using click handler logic to ensure consistency
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 sendBtn.click();
             }
+        });
+
+        userInput.addEventListener('input', () => {
+            userInput.style.height = 'auto';
+            userInput.style.height = userInput.scrollHeight + 'px';
         });
 
         newJobBtn.addEventListener('click', startNewJob);
