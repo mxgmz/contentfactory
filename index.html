@@ -248,6 +248,69 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
+        /* Swipe & Approved Styles */
+        .piece-card {
+            position: relative;
+            background: #ffffff;
+            transition: transform 0.2s ease, background-color 0.2s, border-color 0.2s;
+            overflow: hidden;
+            /* Hide the green background sliding in */
+            touch-action: pan-y;
+            /* Allow vertical scroll, handle horizontal in JS */
+            user-select: none;
+            /* Prevent text selection while dragging */
+        }
+
+        .piece-card.swiping {
+            transition: none;
+        }
+
+        .piece-card.approved-pending {
+            background-color: #ecfdf5;
+            border-color: #059669;
+            transform: none !important;
+            /* Reset position */
+        }
+
+        .piece-card.approved-pending::after {
+            content: "✓ Approval Sent";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #059669;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .piece-card.approved-pending .piece-number {
+            background-color: #059669;
+        }
+
+        .piece-card.approved-pending .piece-content {
+            background-color: #ffffff;
+            border-left-color: #059669;
+        }
+
+        .swipe-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: #ecfdf5;
+            z-index: -1;
+            opacity: 0;
+            display: flex;
+            align-items: center;
+            padding-left: 20px;
+            color: #059669;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
         .piece-card.approved {
             background-color: #ecfdf5;
             border-color: #059669;
@@ -522,6 +585,44 @@
             border-color: var(--primary-color);
             background-color: #fafafa;
         }
+
+        /* Staged Approvals Chips */
+        #staged-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 12px 0;
+        }
+
+        .approval-chip {
+            display: flex;
+            align-items: center;
+            background: #ecfdf5;
+            color: #059669;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            border: 1px solid #a7f3d0;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .approval-chip span {
+            margin-right: 6px;
+        }
+
+        .approval-chip .close-btn {
+            margin-left: 4px;
+            margin-right: 0;
+            cursor: pointer;
+            font-weight: bold;
+            color: #047857;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .approval-chip .close-btn:hover {
+            color: #ef4444;
+        }
     </style>
 </head>
 
@@ -553,6 +654,7 @@
         </div>
 
         <div class="input-area">
+            <div id="staged-container"></div>
             <div id="options-container"></div>
             <div class="input-row">
                 <input type="text" id="user-input" placeholder="Type your answer..." autocomplete="off">
@@ -573,6 +675,7 @@
             isWaiting: false,
             isComplete: false
         };
+        let stagedApprovals = [];
 
         // --- DOM ELEMENTS ---
         const chatHistory = document.getElementById('chat-history');
@@ -790,8 +893,8 @@
         function appendMessage(sender, text) {
             const msgDiv = document.createElement('div');
             msgDiv.classList.add('message', sender);
-            // Allow basic HTML line breaks
-            msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+            // Parse Markdown for better formatting
+            msgDiv.innerHTML = parseMarkdown(text);
             chatHistory.appendChild(msgDiv);
             scrollToBottom();
         }
@@ -897,8 +1000,8 @@
                     // Standard text display for generic pieces
                     const content = document.createElement('div');
                     content.classList.add('piece-content');
-                    // Preserve line breaks in the content
-                    content.innerHTML = contentText.replace(/\n/g, '<br>');
+                    // Render Markdown
+                    content.innerHTML = parseMarkdown(contentText);
                     card.appendChild(content);
                 }
 
@@ -926,11 +1029,151 @@
                     card.appendChild(meta);
                 }
 
+                // Add Swipe capability
+                initSwipe(card, piece);
+
                 container.appendChild(card);
             });
 
             chatHistory.appendChild(container);
             scrollToBottom();
+        }
+
+        // --- SWIPE LOGIC ---
+        function initSwipe(cardElement, piece) {
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+
+            // Add Swipe Background
+            const bg = document.createElement('div');
+            bg.classList.add('swipe-bg');
+            bg.innerText = "✓ Release to Approve";
+            cardElement.prepend(bg);
+
+            const startDrag = (x) => {
+                if (cardElement.classList.contains('approved') || cardElement.classList.contains('approved-pending')) return;
+                startX = x;
+                isDragging = true;
+                cardElement.classList.add('swiping');
+            };
+
+            const moveDrag = (x) => {
+                if (!isDragging) return;
+                currentX = x;
+                let deltaX = currentX - startX;
+
+                // Only allow right swipe
+                if (deltaX < 0) deltaX = 0;
+
+                // Limit max swipe visual
+                if (deltaX > 200) deltaX = 200 + (deltaX - 200) * 0.2; // resistance
+
+                cardElement.style.transform = `translateX(${deltaX}px)`;
+
+                // Opacity feedback
+                const bg = cardElement.querySelector('.swipe-bg');
+                if (bg) bg.style.opacity = Math.min(deltaX / 150, 1);
+            };
+
+            const endDrag = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                cardElement.classList.remove('swiping');
+
+                const deltaX = currentX - startX;
+                if (deltaX > 150) {
+                    // Trigger Approval
+                    triggerApproval(piece, cardElement);
+                } else {
+                    // Reset
+                    cardElement.style.transform = 'translateX(0)';
+                    const bg = cardElement.querySelector('.swipe-bg');
+                    if (bg) bg.style.opacity = 0;
+                }
+            };
+
+            // Touch events
+            cardElement.addEventListener('touchstart', e => startDrag(e.touches[0].clientX), { passive: true });
+            cardElement.addEventListener('touchmove', e => moveDrag(e.touches[0].clientX), { passive: true });
+            cardElement.addEventListener('touchend', endDrag);
+
+            // Mouse events (for desktop testing)
+            cardElement.addEventListener('mousedown', e => startDrag(e.clientX));
+            window.addEventListener('mousemove', e => {
+                if (isDragging) moveDrag(e.clientX);
+            });
+            window.addEventListener('mouseup', endDrag);
+        }
+
+        function triggerApproval(piece, cardElement) {
+            // 1. Find card if missing
+            if (!cardElement) {
+                const cards = document.querySelectorAll('.piece-card');
+                // Try to match by number first (if visible in text) or title
+                for (let c of cards) {
+                    if (piece.number && c.innerText.includes(`Piece ${piece.number}`)) {
+                        cardElement = c;
+                        break;
+                    }
+                    if (c.innerText.includes(piece.title)) {
+                        cardElement = c;
+                        break;
+                    }
+                }
+            }
+
+            // 2. Check if already staged
+            if (stagedApprovals.some(p => p.piece.number === piece.number && p.piece.title === piece.title)) {
+                return;
+            }
+
+            // 3. Visual Update
+            if (cardElement) {
+                cardElement.classList.add('approved-pending');
+                cardElement.style.transform = 'translateX(0)';
+            }
+
+            // 4. Add to Staged List
+            stagedApprovals.push({ piece, cardElement });
+            renderStagedApprovals();
+        }
+
+        function renderStagedApprovals() {
+            const container = document.getElementById('staged-container');
+            if (!container) return;
+            container.innerHTML = '';
+            stagedApprovals.forEach((item, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'approval-chip';
+                // Chip content: "Title" or "Piece N"
+                const label = item.piece.title || `Piece ${item.piece.number}`;
+                chip.innerHTML = `
+                    <span>✓ Approved: ${label}</span>
+                    <span class="close-btn" data-index="${index}">&times;</span>
+                `;
+                container.appendChild(chip);
+
+                // Attach event safely
+                const closeBtn = chip.querySelector('.close-btn');
+                closeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeStagedApproval(index);
+                }
+            });
+        }
+
+        function removeStagedApproval(index) {
+            const item = stagedApprovals[index];
+            if (item && item.cardElement) {
+                item.cardElement.classList.remove('approved-pending');
+                // Reset styling
+                item.cardElement.style.transform = '';
+                const bg = item.cardElement.querySelector('.swipe-bg');
+                if (bg) bg.style.opacity = 0;
+            }
+            stagedApprovals.splice(index, 1);
+            renderStagedApprovals();
         }
 
         // --- PREVIEW MODAL LOGIC ---
@@ -993,6 +1236,20 @@
                     </div>
                 </div>
             `;
+            // Add APPROVE Button to Preview
+            const actions = container.querySelector('.li-actions');
+            const approveBtn = document.createElement('div');
+            approveBtn.classList.add('li-action');
+            approveBtn.style.color = '#059669';
+            approveBtn.style.fontWeight = 'bold';
+            approveBtn.style.background = '#ecfdf5';
+            approveBtn.innerHTML = '✓ APPROVE';
+            approveBtn.onclick = () => {
+                closeModal();
+                triggerApproval(piece);
+            };
+            actions.prepend(approveBtn);
+
             return container;
         }
 
@@ -1014,7 +1271,18 @@
                 <div class="blog-body">
                     ${formatBlogContent(piece.content)}
                 </div>
+                <div style="margin-top: 40px; text-align: center;">
+                    <button class="option-btn" style="background:#059669; color:white; border:none; padding: 12px 24px;">✓ Approve Article</button>
+                </div>
             `;
+
+            // Bind approve logic
+            const btn = container.querySelector('button');
+            btn.onclick = () => {
+                closeModal();
+                triggerApproval(piece);
+            };
+
             // Simple MD formatting for blog
             return container;
         }
@@ -1177,17 +1445,89 @@
             });
         }
 
+        // --- MARKDOWN HELPER ---
+        function parseMarkdown(text) {
+            if (!text) return '';
+
+            let lines = text.split('\n');
+            let html = '';
+            let inList = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                let trimmed = line.trim();
+
+                // Check for lists
+                if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                    if (!inList) {
+                        html += '<ul style="margin: 8px 0; padding-left: 20px;">';
+                        inList = true;
+                    }
+                    let content = trimmed.substring(2);
+                    content = formatInline(content);
+                    html += `<li>${content}</li>`;
+                } else {
+                    if (inList) {
+                        html += '</ul>';
+                        inList = false;
+                    }
+
+                    // Headers
+                    if (trimmed.startsWith('### ')) {
+                        html += `<h3 style="margin: 12px 0 8px 0; font-size: 1.1em;">${formatInline(trimmed.substring(4))}</h3>`;
+                    } else if (trimmed.startsWith('## ')) {
+                        html += `<h2 style="margin: 16px 0 8px 0; font-size: 1.25em;">${formatInline(trimmed.substring(3))}</h2>`;
+                    } else if (trimmed.startsWith('# ')) {
+                        html += `<h1 style="margin: 16px 0 8px 0; font-size: 1.5em;">${formatInline(trimmed.substring(2))}</h1>`;
+                    } else if (trimmed === '') {
+                        html += '<br>';
+                    } else {
+                        html += formatInline(line) + '<br>';
+                    }
+                }
+            }
+            if (inList) html += '</ul>';
+            return html;
+        }
+
+        function formatInline(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/__(.*?)__/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/_(.*?)_/g, '<em>$1</em>')
+                .replace(/`([^`]+)`/g, '<code style="background:#eee;padding:2px 4px;border-radius:4px;">$1</code>');
+        }
+
         // --- EVENT LISTENERS ---
 
         sendBtn.addEventListener('click', () => {
-            const text = userInput.value.trim();
+            let text = userInput.value.trim();
+
+            // Check for staged approvals
+            if (stagedApprovals.length > 0) {
+                const approvalTexts = stagedApprovals.map(item => {
+                    return `piece number ${item.piece.number || '?'} (${item.piece.title}) has been approved`;
+                }).join('\n');
+
+                // Combine with user text or send alone
+                text = text ? (text + '\n\n' + approvalTexts) : approvalTexts;
+
+                // Clear staged items visuals (they will be re-rendered as approved if backend confirms, 
+                // but for now we just clear the chips. The cards stay green as "pending" until refreshed or we could leave them)
+                // The prompt implies we send the text.
+                stagedApprovals = [];
+                renderStagedApprovals();
+            }
+
             if (text) sendMessage(text);
         });
 
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                const text = userInput.value.trim();
-                if (text) sendMessage(text);
+                // Determine if we should send. 
+                // Using click handler logic to ensure consistency
+                sendBtn.click();
             }
         });
 
