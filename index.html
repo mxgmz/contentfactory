@@ -29,7 +29,8 @@
 
         #app {
             width: 100%;
-            max-width: 600px;
+            max-width: 1200px;
+            /* Enhanced Desktop Width */
             background-color: var(--chat-bg);
             display: flex;
             flex-direction: column;
@@ -228,11 +229,14 @@
 
         /* Content Pieces Cards */
         .pieces-container {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            /* Grid for Desktop */
+            gap: 16px;
             margin-top: 8px;
             max-width: 100%;
+            align-content: start;
+            /* Ensure top alignment */
         }
 
         .piece-card {
@@ -954,27 +958,44 @@
                     card.appendChild(title);
                 }
 
-                // IMAGE DISPLAY (NEW)
-                if (piece.image_url) {
+                // IMAGE DISPLAY (UPDATED)
+                // Handle both single 'image_url' and multiple 'images' array
+                let imagesToRender = [];
+                if (piece.images && Array.isArray(piece.images)) {
+                    imagesToRender = piece.images;
+                } else if (piece.image_url) {
+                    imagesToRender = [piece.image_url];
+                }
+
+                if (imagesToRender.length > 0) {
                     const imageContainer = document.createElement('div');
-                    imageContainer.classList.add('piece-image-container');
+                    imageContainer.classList.add('piece-images-row');
+                    imageContainer.style.display = 'flex';
+                    imageContainer.style.gap = '8px';
+                    imageContainer.style.overflowX = 'auto';
+                    imageContainer.style.paddingBottom = '8px';
                     imageContainer.style.marginBottom = '12px';
-                    imageContainer.style.borderRadius = '8px';
-                    imageContainer.style.overflow = 'hidden';
-                    imageContainer.style.border = '1px solid var(--border-color)';
-                    imageContainer.style.backgroundColor = '#fafafa';
 
-                    const img = document.createElement('img');
-                    img.src = piece.image_url;
-                    img.alt = piece.title || 'Generated image';
-                    img.style.width = '100%';
-                    img.style.height = 'auto';
-                    img.style.display = 'block';
-                    img.onerror = () => {
-                        imageContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#71717a;">Image loading...</div>';
-                    };
+                    imagesToRender.forEach(url => {
+                        const imgWrapper = document.createElement('div');
+                        imgWrapper.style.flex = '0 0 auto';
+                        imgWrapper.style.width = imagesToRender.length > 1 ? '200px' : '100%';
+                        imgWrapper.style.border = '1px solid var(--border-color)';
+                        imgWrapper.style.borderRadius = '8px';
+                        imgWrapper.style.overflow = 'hidden';
 
-                    imageContainer.appendChild(img);
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = piece.title || 'Image';
+                        img.style.width = '100%';
+                        img.style.height = '150px';
+                        img.style.objectFit = 'cover';
+                        img.style.display = 'block';
+
+                        imgWrapper.appendChild(img);
+                        imageContainer.appendChild(imgWrapper);
+                    });
+
                     card.appendChild(imageContainer);
                 }
 
@@ -1212,7 +1233,23 @@
             const container = document.createElement('div');
             container.classList.add('preview-linkedin');
 
-            // Header
+            // Determine Image(s)
+            let imagesHtml = '';
+            let imagesList = piece.images && Array.isArray(piece.images) ? piece.images : (piece.image_url ? [piece.image_url] : []);
+
+            if (imagesList.length > 0) {
+                // LinkedIn image grid or carousel logic simplified
+                if (imagesList.length === 1) {
+                    imagesHtml = `<img src="${imagesList[0]}" style="width:100%; height:auto; display:block; margin-top:12px; border:1px solid #e5e5e5;">`;
+                } else {
+                    // Simple grid for multiple
+                    const gridStyle = `display:grid; grid-template-columns: repeat(${Math.min(imagesList.length, 2)}, 1fr); gap:2px; margin-top:12px;`;
+                    imagesHtml = `<div style="${gridStyle}">
+                        ${imagesList.map(url => `<img src="${url}" style="width:100%; height:200px; object-fit:cover; display:block;">`).join('')}
+                     </div>`;
+                }
+            }
+
             container.innerHTML = `
                 <div class="li-header">
                     <div class="li-avatar">
@@ -1226,6 +1263,7 @@
                 </div>
                 <div class="li-body">
                     ${formatLiContent(piece.content)}
+                    ${imagesHtml}
                 </div>
                 <div class="li-footer">
                     <div class="li-actions">
@@ -1259,7 +1297,17 @@
 
             const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+            // Determine Image
+            let featuredImageHtml = '';
+            let imagesList = piece.images && Array.isArray(piece.images) ? piece.images : (piece.image_url ? [piece.image_url] : []);
+
+            if (imagesList.length > 0) {
+                // Blog typically shows one featured image at top
+                featuredImageHtml = `<img src="${imagesList[0]}" style="width:100%; height:auto; max-height:400px; object-fit:cover; border-radius:4px; margin-bottom:24px;">`;
+            }
+
             container.innerHTML = `
+                ${featuredImageHtml}
                 <div class="blog-title">${piece.title || 'Untitled Post'}</div>
                 <div class="blog-meta">
                     <span>By Content Team</span>
