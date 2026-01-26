@@ -846,11 +846,16 @@
             state.requestId = null;
             state.activeRequests = 0;
             state.isComplete = false;
+            state.pieces = []; // Clear pieces
+            stagedApprovals = []; // Clear staged approvals
 
             // Clear UI
             chatHistory.innerHTML = '';
             userInput.value = '';
             clearOptions();
+
+            const stagedContainer = document.getElementById('staged-container');
+            if (stagedContainer) stagedContainer.innerHTML = '';
 
             // Update Debug info
             debugId.innerText = `Session: ${newId.slice(0, 8)}...`;
