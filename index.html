@@ -1031,6 +1031,76 @@
                         img.style.display = 'block';
 
                         imgWrapper.appendChild(img);
+
+                        // COMMENT UI
+                        const commentContainer = document.createElement('div');
+                        commentContainer.style.padding = '8px';
+                        commentContainer.style.backgroundColor = '#f9fafb';
+                        commentContainer.style.borderTop = '1px solid #e5e7eb';
+
+                        // Check existing comment
+                        const existingComment = (piece.image_comments || []).find(c => c.url === url);
+
+                        if (existingComment) {
+                            const savedNote = document.createElement('div');
+                            savedNote.style.fontSize = '12px';
+                            savedNote.style.color = '#d97706'; // Amber
+                            savedNote.style.backgroundColor = '#fffbeb';
+                            savedNote.style.padding = '4px 8px';
+                            savedNote.style.borderRadius = '4px';
+                            savedNote.style.marginBottom = '4px';
+                            savedNote.innerHTML = `<strong>Note:</strong> ${existingComment.comment}`;
+                            commentContainer.appendChild(savedNote);
+                        }
+
+                        const commentBtn = document.createElement('button');
+                        commentBtn.innerText = existingComment ? '✎ Edit Note' : '💬 Add Note';
+                        commentBtn.style.fontSize = '11px';
+                        commentBtn.style.background = 'none';
+                        commentBtn.style.border = 'none';
+                        commentBtn.style.color = '#6b7280';
+                        commentBtn.style.cursor = 'pointer';
+                        commentBtn.style.padding = '0';
+
+                        const inputDiv = document.createElement('div');
+                        inputDiv.style.display = 'none';
+                        inputDiv.style.marginTop = '4px';
+
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.placeholder = 'Type comment...';
+                        input.style.width = '100%';
+                        input.style.fontSize = '12px';
+                        input.style.padding = '4px';
+                        input.style.border = '1px solid #d1d5db';
+                        input.style.borderRadius = '4px';
+                        input.value = existingComment ? existingComment.comment : '';
+
+                        const saveBtn = document.createElement('button');
+                        saveBtn.innerText = 'Save';
+                        saveBtn.style.fontSize = '11px';
+                        saveBtn.style.marginTop = '4px';
+                        saveBtn.style.padding = '2px 6px';
+                        saveBtn.style.cursor = 'pointer';
+
+                        saveBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            saveImageComment(piece, url, input.value);
+                        };
+
+                        inputDiv.appendChild(input);
+                        inputDiv.appendChild(saveBtn);
+
+                        commentBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            inputDiv.style.display = inputDiv.style.display === 'none' ? 'block' : 'none';
+                            if (inputDiv.style.display === 'block') input.focus();
+                        };
+
+                        commentContainer.appendChild(commentBtn);
+                        commentContainer.appendChild(inputDiv);
+                        imgWrapper.appendChild(commentContainer);
+
                         imageContainer.appendChild(imgWrapper);
                     });
 
@@ -1218,8 +1288,8 @@
                 }
             }
 
-            // 2. Check if already staged
-            if (stagedApprovals.some(p => p.piece.number === piece.number && p.piece.title === piece.title)) {
+            // 2. Check if already staged (Approvals)
+            if (stagedApprovals.some(p => p.type === 'APPROVE' && p.piece.number === piece.number && p.piece.title === piece.title)) {
                 return;
             }
 
@@ -1230,7 +1300,7 @@
             }
 
             // 4. Add to Staged List (for UI)
-            stagedApprovals.push({ piece, cardElement });
+            stagedApprovals.push({ type: 'APPROVE', piece, cardElement });
             renderStagedApprovals();
 
             // 5. Update State for Payload
@@ -1244,15 +1314,27 @@
             const container = document.getElementById('staged-container');
             if (!container) return;
             container.innerHTML = '';
+
             stagedApprovals.forEach((item, index) => {
                 const chip = document.createElement('div');
                 chip.className = 'approval-chip';
-                // Chip content: "Title" or "Piece N"
-                const label = item.piece.title || `Piece ${item.piece.number}`;
-                chip.innerHTML = `
-                    <span>✓ Approved: ${label}</span>
-                    <span class="close-btn" data-index="${index}">&times;</span>
-                `;
+
+                if (item.type === 'APPROVE') {
+                    const label = item.piece.title || `Piece ${item.piece.number}`;
+                    chip.innerHTML = `
+                        <span>✓ Approved: ${label}</span>
+                        <span class="close-btn" data-index="${index}">&times;</span>
+                    `;
+                } else if (item.type === 'EDIT') {
+                    chip.style.backgroundColor = '#dbeafe'; // Blueish for edit
+                    chip.style.color = '#1e40af';
+                    chip.style.borderColor = '#bfdbfe';
+                    chip.innerHTML = `
+                        <span>✏️ ${item.summary}</span>
+                        <span class="close-btn" data-index="${index}">&times;</span>
+                    `;
+                }
+
                 container.appendChild(chip);
 
                 // Attach event safely
@@ -1262,19 +1344,62 @@
                     removeStagedApproval(index);
                 }
             });
+
+            // "Send Edits" Button Logic
+            const hasEdits = stagedApprovals.some(item => item.type === 'EDIT');
+            if (hasEdits) {
+                const sendEditsBtn = document.createElement('button');
+                sendEditsBtn.innerText = "🚀 Send Edits";
+                sendEditsBtn.classList.add('send-btn'); // Reuse style or custom
+                sendEditsBtn.style.marginTop = '8px';
+                sendEditsBtn.style.width = '100%';
+                sendEditsBtn.style.backgroundColor = '#2563eb';
+
+                sendEditsBtn.onclick = () => {
+                    // Filter text only for the manual "Send" action? 
+                    // Or just trigger sendMessage with a system note
+                    sendMessage("Submitting my edits.");
+                };
+                container.appendChild(sendEditsBtn);
+            }
         }
 
         function removeStagedApproval(index) {
             const item = stagedApprovals[index];
-            if (item && item.cardElement) {
-                item.cardElement.classList.remove('approved-pending');
-                // Reset styling
-                item.cardElement.style.transform = '';
-                const bg = item.cardElement.querySelector('.swipe-bg');
-                if (bg) bg.style.opacity = 0;
+            if (!item) return;
+
+            // 1. Revert State
+            if (item.type === 'APPROVE') {
+                const pieceInState = state.pieces.find(p => p.number === item.piece.number && p.title === item.piece.title);
+                if (pieceInState) {
+                    pieceInState.approved = false;
+                }
+                if (item.cardElement) {
+                    item.cardElement.classList.remove('approved-pending');
+                    item.cardElement.style.transform = '';
+                    const bg = item.cardElement.querySelector('.swipe-bg');
+                    if (bg) bg.style.opacity = 0;
+                }
+            } else if (item.type === 'EDIT') {
+                if (item.summary.startsWith('Commented')) {
+                    // Revert image comment
+                    const pieceInState = state.pieces.find(p => p.number === item.piece.number && p.title === item.piece.title);
+                    if (pieceInState && pieceInState.image_comments) {
+                        pieceInState.image_comments.pop(); // Remove last added
+                    }
+                } else {
+                    // Text edit
+                    undoEdit(item.piece);
+                    return; // undoEdit handles the splice/render reuse
+                }
             }
+
+            // 2. Remove from Array
             stagedApprovals.splice(index, 1);
+
+            // 3. Re-render
             renderStagedApprovals();
+            renderPieces(state.pieces);
         }
 
         // --- PREVIEW MODAL LOGIC ---
@@ -1349,6 +1474,21 @@
             pieceInState.content = newContent;
             pieceInState.edited = true;
 
+            // TRACK EDIT ACTION
+            let summary = `Edited Piece ${pieceInState.number}`;
+            if (newTitle !== (pieceInState.original_title || pieceInState.title)) {
+                summary = `Renamed Piece ${pieceInState.number}`;
+            }
+
+            // Remove existing edit for this piece if any (update it)
+            const existIdx = stagedApprovals.findIndex(p => p.type === 'EDIT' && p.piece.number === pieceInState.number);
+            if (existIdx >= 0) {
+                stagedApprovals.splice(existIdx, 1);
+            }
+
+            stagedApprovals.push({ type: 'EDIT', piece: pieceInState, summary });
+            renderStagedApprovals();
+
             // Close Modal
             closeEditModal();
 
@@ -1367,6 +1507,13 @@
             }
 
             pieceInState.edited = false;
+
+            // Remove from staged actions
+            const existIdx = stagedApprovals.findIndex(p => p.type === 'EDIT' && p.piece.number === pieceInState.number);
+            if (existIdx >= 0) {
+                stagedApprovals.splice(existIdx, 1);
+                renderStagedApprovals();
+            }
 
             renderPieces(state.pieces);
         }
@@ -1735,6 +1882,44 @@
         // Start
         init();
 
+        function saveImageComment(piece, url, comment) {
+            // Find reference
+            const pieceInState = state.pieces.find(p => p.number === piece.number && p.title === piece.title) || piece;
+
+            if (!pieceInState.image_comments) {
+                pieceInState.image_comments = [];
+            }
+
+            // Update or Add
+            const existingIdx = pieceInState.image_comments.findIndex(c => c.url === url);
+            if (existingIdx >= 0) {
+                if (comment.trim() === '') {
+                    pieceInState.image_comments.splice(existingIdx, 1); // Delete if empty
+                } else {
+                    pieceInState.image_comments[existingIdx].comment = comment;
+                }
+            } else if (comment.trim() !== '') {
+                pieceInState.image_comments.push({ url, comment });
+            }
+
+            // Flag as edited to show "Send Edits" if needed? 
+            // The requirement said "sent back", so it should probably trigger an edit state
+            // Let's mark the piece as edited too so it gets picked up by "Send Edits"
+            pieceInState.edited = true;
+
+            // Update summary logic (reused from saveEdit)
+            let summary = `Commented on Image in Piece ${pieceInState.number}`;
+
+            // Remove existing edit for this piece if any to avoid spam
+            const existIdx = stagedApprovals.findIndex(p => p.type === 'EDIT' && p.piece.number === pieceInState.number);
+            if (existIdx >= 0) {
+                stagedApprovals.splice(existIdx, 1);
+            }
+            stagedApprovals.push({ type: 'EDIT', piece: pieceInState, summary });
+            renderStagedApprovals();
+
+            renderPieces(state.pieces);
+        }
     </script>
 </body>
 
