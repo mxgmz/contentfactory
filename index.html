@@ -645,6 +645,27 @@
         </div>
     </div>
 
+    <!-- Edit Modal -->
+    <div id="edit-modal-overlay" class="modal-overlay">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="modal-close" onclick="closeEditModal()">&times;</span>
+            <h2 style="margin-top:0;">Edit Piece</h2>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <label style="font-weight:600;">Title</label>
+                <input type="text" id="edit-title" style="padding:8px; border:1px solid #ccc; border-radius:4px;">
+
+                <label style="font-weight:600;">Content</label>
+                <textarea id="edit-content" rows="15"
+                    style="padding:8px; border:1px solid #ccc; border-radius:4px; font-family:inherit;"></textarea>
+
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+                    <button class="option-btn" onclick="closeEditModal()">Cancel</button>
+                    <button class="send-btn" onclick="saveEdit()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="app">
         <header>
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -683,7 +704,8 @@
         let state = {
             requestId: null,
             activeRequests: 0,
-            isComplete: false
+            isComplete: false,
+            pieces: []
         };
         let stagedApprovals = [];
 
@@ -746,12 +768,12 @@
             // Update UI State
             updateLoadingState(true);
 
-            // Prepare Payload
             const payload = {
                 user_id: getUserId(),
                 session_id: getSessionId(),
                 request_id: state.requestId,
-                user_input: text
+                user_input: text,
+                pieces: state.pieces
             };
 
             try {
@@ -880,6 +902,7 @@
 
             // 4. Handle Pieces Display (for TEXT_APPROVAL state)
             if (data.showPieces && data.pieces && Array.isArray(data.pieces)) {
+                state.pieces = data.pieces; // Update state with latest pieces
                 renderPieces(data.pieces);
             }
 
@@ -936,8 +959,17 @@
         function renderPieces(pieces) {
             if (!pieces || !Array.isArray(pieces) || pieces.length === 0) return;
 
-            const container = document.createElement('div');
-            container.classList.add('pieces-container');
+            const containerId = 'active-pieces-container';
+            let container = document.getElementById(containerId);
+
+            if (!container) {
+                container = document.createElement('div');
+                container.id = containerId;
+                container.classList.add('pieces-container');
+                chatHistory.appendChild(container); // Append only if new
+            } else {
+                container.innerHTML = ''; // Clear existing to re-render in place
+            }
 
             pieces.forEach((piece, index) => {
                 const card = document.createElement('div');
@@ -1031,6 +1063,42 @@
                     content.innerHTML = parseMarkdown(contentText);
                     card.appendChild(content);
                 }
+
+                // EDIT BUTTON
+                const editBtnContainer = document.createElement('div');
+                editBtnContainer.style.marginTop = '12px';
+                editBtnContainer.style.textAlign = 'right';
+
+                const editBtn = document.createElement('button');
+                editBtn.classList.add('option-btn');
+                editBtn.innerHTML = '✏️ Edit';
+                editBtn.style.padding = '4px 8px';
+                editBtn.style.fontSize = '12px';
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    openEditModal(piece);
+                };
+                editBtnContainer.appendChild(editBtn);
+
+                // UNDO BUTTON (Version Control)
+                if (piece.edited) {
+                    const undoBtn = document.createElement('button');
+                    undoBtn.classList.add('option-btn');
+                    undoBtn.innerHTML = '↩️ Undo';
+                    undoBtn.style.padding = '4px 8px';
+                    undoBtn.style.fontSize = '12px';
+                    undoBtn.style.marginLeft = '8px';
+                    undoBtn.style.backgroundColor = '#fff1f2';
+                    undoBtn.style.color = '#e11d48';
+                    undoBtn.style.borderColor = '#fecdd3';
+                    undoBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        undoEdit(piece);
+                    };
+                    editBtnContainer.appendChild(undoBtn);
+                }
+
+                card.appendChild(editBtnContainer);
 
                 // Meta info (hashtags, CTA)
 
@@ -1161,9 +1229,15 @@
                 cardElement.style.transform = 'translateX(0)';
             }
 
-            // 4. Add to Staged List
+            // 4. Add to Staged List (for UI)
             stagedApprovals.push({ piece, cardElement });
             renderStagedApprovals();
+
+            // 5. Update State for Payload
+            const pieceInState = state.pieces.find(p => p.number === piece.number && p.title === piece.title);
+            if (pieceInState) {
+                pieceInState.approved = true;
+            }
         }
 
         function renderStagedApprovals() {
@@ -1234,6 +1308,68 @@
         modalOverlay.onclick = (e) => {
             if (e.target === modalOverlay) closeModal();
         };
+
+        // --- EDIT MODAL LOGIC ---
+        const editModalOverlay = document.getElementById('edit-modal-overlay');
+        const editTitleInput = document.getElementById('edit-title');
+        const editContentInput = document.getElementById('edit-content');
+        let currentEditingPiece = null;
+
+        function openEditModal(piece) {
+            currentEditingPiece = piece;
+            editTitleInput.value = piece.title || '';
+            editContentInput.value = piece.content || ''; // Use raw content for editing
+            editModalOverlay.classList.add('active');
+        }
+
+        function closeEditModal() {
+            editModalOverlay.classList.remove('active');
+            currentEditingPiece = null;
+        }
+
+        function saveEdit() {
+            if (!currentEditingPiece) return;
+
+            // Update piece object
+            const newTitle = editTitleInput.value;
+            const newContent = editContentInput.value;
+
+            // Find in state to ensure we update the main reference (though objects are by ref)
+            const pieceInState = state.pieces.find(p => p.number === currentEditingPiece.number && p.title === currentEditingPiece.title) || currentEditingPiece;
+
+            // VERSION CONTROL: Save originals if not exists
+            if (pieceInState.original_title === undefined) {
+                pieceInState.original_title = pieceInState.title;
+            }
+            if (pieceInState.original_content === undefined) {
+                pieceInState.original_content = pieceInState.content;
+            }
+
+            pieceInState.title = newTitle;
+            pieceInState.content = newContent;
+            pieceInState.edited = true;
+
+            // Close Modal
+            closeEditModal();
+
+            // Re-render
+            renderPieces(state.pieces);
+        }
+
+        function undoEdit(piece) {
+            const pieceInState = state.pieces.find(p => p.number === piece.number && p.title === piece.title) || piece;
+
+            if (pieceInState.original_title !== undefined) {
+                pieceInState.title = pieceInState.original_title;
+            }
+            if (pieceInState.original_content !== undefined) {
+                pieceInState.content = pieceInState.original_content;
+            }
+
+            pieceInState.edited = false;
+
+            renderPieces(state.pieces);
+        }
 
         function createLinkedInPreview(piece) {
             const container = document.createElement('div');
