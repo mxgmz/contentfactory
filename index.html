@@ -779,11 +779,6 @@
             try {
                 console.log('Sending payload:', payload);
 
-                // In a real scenario, this fetch would go to n8n.
-                // For DEMO purposes without a live backend, I'lladd a simplified mock mode check
-                // BUT strict requirements say "Every user action sends data to n8n". 
-                // So we default to fetch.
-
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -795,14 +790,98 @@
                 }
 
                 const data = await response.json();
-                handleResponse(data);
+
+                // Check if this is an async response (processing status)
+                if (data.status === "processing") {
+                    console.log('Async mode: starting polling for session:', data.session_id);
+
+                    // Show immediate acknowledgment message if provided
+                    if (data.bot_message) {
+                        appendMessage('bot', data.bot_message);
+                    }
+
+                    // Start polling for results
+                    pollForResults(data.session_id, data.job_id || state.requestId);
+                } else {
+                    // Synchronous response (backward compatible)
+                    console.log('Sync mode: handling response immediately');
+                    handleResponse(data);
+                    updateLoadingState(false);
+                }
 
             } catch (error) {
                 console.error('Webhook Error:', error);
-                // Fallback for demo if fetch fails (likely CORS or no server)
                 appendMessage('bot', `⚠️ Error connecting to n8n: ${error.message}. <br><br>Make sure n8n is running and CORS is configured, or check the console.`);
                 updateLoadingState(false);
             }
+        }
+
+        // NEW: Polling function for async workflows
+        async function pollForResults(session_id, job_id, maxAttempts = 60) {
+            let attempts = 0;
+            const pollInterval = 2000; // Poll every 2 seconds
+
+            const poll = async () => {
+                attempts++;
+                console.log(`Polling attempt ${attempts}/${maxAttempts} for session: ${session_id}`);
+
+                try {
+                    // Build query string
+                    const params = new URLSearchParams({ session_id });
+                    if (job_id) params.append('job_id', job_id);
+
+                    const response = await fetch(`/api/intake/status?${params.toString()}`);
+
+                    if (!response.ok) {
+                        throw new Error(`Status check failed: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    console.log('Poll response:', data);
+
+                    if (data.status === "complete") {
+                        // Got results! Process them
+                        console.log('Workflow complete, rendering results');
+                        if (data.data) {
+                            handleResponse(data.data);
+                        }
+                        updateLoadingState(false);
+                        return; // Stop polling
+
+                    } else if (data.status === "error") {
+                        // Workflow failed
+                        console.error('Workflow error:', data.error);
+                        appendMessage('bot', `⚠️ Error: ${data.error || 'Processing failed. Please try again.'}`);
+                        updateLoadingState(false);
+                        return; // Stop polling
+
+                    } else if (attempts >= maxAttempts) {
+                        // Timeout
+                        console.warn('Polling timeout reached');
+                        appendMessage('bot', '⚠️ Request timed out. Your request is still processing. Please refresh to see updates or try again.');
+                        updateLoadingState(false);
+                        return; // Stop polling
+                    }
+
+                    // Still processing, poll again
+                    setTimeout(poll, pollInterval);
+
+                } catch (err) {
+                    console.error('Polling error:', err);
+
+                    // Retry on error unless max attempts reached
+                    if (attempts >= maxAttempts) {
+                        appendMessage('bot', '⚠️ Connection lost while checking status. Please refresh and try again.');
+                        updateLoadingState(false);
+                    } else {
+                        // Retry after delay
+                        setTimeout(poll, pollInterval);
+                    }
+                }
+            };
+
+            // Start polling after 1 second (give workflow time to start)
+            setTimeout(poll, 1000);
         }
 
         //userid
