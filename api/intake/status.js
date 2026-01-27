@@ -49,3 +49,25 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 status: cachedResult.status,
                 data: cachedResult.data,
+                cached: true,
+                timestamp: cachedResult.timestamp
+            });
+        }
+
+        // Cache miss - workflow still processing
+        console.log(`Cache miss for session: ${session_id} - still processing`);
+
+        return res.status(200).json({
+            status: "processing",
+            message: "Workflow is still running. Results will be available when complete.",
+            cached: false
+        });
+
+    } catch (err) {
+        console.error('Error reading cache from Redis:', err);
+        return res.status(500).json({
+            error: "Failed to read cache",
+            details: err.message
+        });
+    }
+}
