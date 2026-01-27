@@ -3,11 +3,13 @@
 // Method: GET
 // Purpose: Check cached workflow results (much faster than polling n8n)
 
-import { promises as fs } from 'fs';
-import path from 'path';
+import { Redis } from '@upstash/redis';
 
-// Use same cache directory as complete.js
-const CACHE_DIR = '/tmp/intake-cache';
+// Initialize Upstash Redis client
+const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 export default async function handler(req, res) {
     // CORS headers
@@ -34,12 +36,12 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Read cache file
-        const cacheFile = path.join(CACHE_DIR, `${session_id}.json`);
+        // Read from Upstash Redis
+        const cachedData = await redis.get(`result:${session_id}`);
 
-        try {
-            const fileContent = await fs.readFile(cacheFile, 'utf8');
-            const cachedResult = JSON.parse(fileContent);
+        if (cachedData) {
+            // Parse if it's a string (Upstash returns parsed JSON by default, but being safe)
+            const cachedResult = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
 
             console.log(`Cache hit for session: ${session_id}, status: ${cachedResult.status}`);
 
@@ -47,31 +49,3 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 status: cachedResult.status,
                 data: cachedResult.data,
-                cached: true,
-                timestamp: cachedResult.timestamp
-            });
-
-        } catch (readErr) {
-            // File doesn't exist - workflow still processing
-            if (readErr.code === 'ENOENT') {
-                console.log(`Cache miss for session: ${session_id} - still processing`);
-
-                return res.status(200).json({
-                    status: "processing",
-                    message: "Workflow is still running. Results will be available when complete.",
-                    cached: false
-                });
-            }
-
-            // Other error
-            throw readErr;
-        }
-
-    } catch (err) {
-        console.error('Error reading cache:', err);
-        return res.status(500).json({
-            error: "Failed to read cache",
-            details: err.message
-        });
-    }
-}

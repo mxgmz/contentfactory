@@ -3,20 +3,13 @@
 // Method: POST
 // Purpose: Receive completion callback from CFFINAL copy workflow
 
-import { promises as fs } from 'fs';
-import path from 'path';
+import { Redis } from '@upstash/redis';
 
-// Use /tmp directory for cache (shared within Vercel region)
-const CACHE_DIR = '/tmp/intake-cache';
-
-// Ensure cache directory exists
-async function ensureCacheDir() {
-    try {
-        await fs.mkdir(CACHE_DIR, { recursive: true });
-    } catch (err) {
-        // Directory might already exist
-    }
-}
+// Initialize Upstash Redis client
+const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 export default async function handler(req, res) {
     // CORS headers
@@ -57,42 +50,17 @@ export default async function handler(req, res) {
     console.log(`Received completion callback for session: ${session_id}, status: ${status}`);
 
     try {
-        // Ensure cache directory exists
-        await ensureCacheDir();
-
-        // Write result to file
-        const cacheFile = path.join(CACHE_DIR, `${session_id}.json`);
+        // Store in Upstash Redis
+        // Auto-expires in 5 minutes (300 seconds)
         const cacheData = {
             status,
             data: data || {},
             timestamp: Date.now()
         };
 
-        await fs.writeFile(cacheFile, JSON.stringify(cacheData), 'utf8');
+        await redis.set(`result:${session_id}`, JSON.stringify(cacheData), { ex: 300 });
 
-        console.log(`Cached result to file: ${cacheFile}`);
-
-        // Clean up old files (older than 5 minutes)
-        try {
-            const files = await fs.readdir(CACHE_DIR);
-            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-
-            for (const file of files) {
-                if (file.endsWith('.json')) {
-                    const filePath = path.join(CACHE_DIR, file);
-                    const fileContent = await fs.readFile(filePath, 'utf8');
-                    const fileData = JSON.parse(fileContent);
-
-                    if (fileData.timestamp < fiveMinutesAgo) {
-                        await fs.unlink(filePath);
-                        console.log(`Cleaned up expired cache file: ${file}`);
-                    }
-                }
-            }
-        } catch (cleanupErr) {
-            console.error('Cleanup error:', cleanupErr);
-            // Don't fail the request if cleanup fails
-        }
+        console.log(`Cached result in Redis for session: ${session_id}`);
 
         // Return success
         return res.status(200).json({
@@ -102,7 +70,7 @@ export default async function handler(req, res) {
         });
 
     } catch (err) {
-        console.error('Error caching result:', err);
+        console.error('Error caching result in Redis:', err);
         return res.status(500).json({
             error: "Failed to cache result",
             details: err.message
