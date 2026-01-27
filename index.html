@@ -809,7 +809,7 @@
                     }
 
                     // Start polling for results using request_id (pass processingMessage to remove it later)
-                    pollForResults(uniqueRequestId, data.job_id || state.requestId, 60, processingMessage);
+                    pollForResults(uniqueRequestId, data.job_id || state.requestId, 180, processingMessage);
                 } else {
                     // Synchronous response (backward compatible)
                     console.log('Sync mode: handling response immediately');
@@ -825,9 +825,9 @@
         }
 
         // NEW: Polling function for async workflows
-        async function pollForResults(request_id, job_id, maxAttempts = 60, processingMessage = null) {
+        async function pollForResults(request_id, job_id, maxAttempts = 180, processingMessage = null) {
             let attempts = 0;
-            const pollInterval = 2000; // Poll every 2 seconds
+            const pollInterval = 2000; // Poll every 2 seconds (180 attempts = 6 minutes max)
 
             const poll = async () => {
                 attempts++;
