@@ -789,7 +789,11 @@
                     throw new Error(`Server error: ${response.status}`);
                 }
 
-                const data = await response.json();
+                let data = await response.json();
+                if (Array.isArray(data)) {
+                    console.log('Response is an array, using first item');
+                    data = data[0] || {};
+                }
 
                 // Check if this is an async response (processing status)
                 if (data.status === "processing") {
@@ -836,7 +840,10 @@
                         throw new Error(`Status check failed: ${response.status}`);
                     }
 
-                    const data = await response.json();
+                    let data = await response.json();
+                    if (Array.isArray(data)) {
+                        data = data[0] || {};
+                    }
                     console.log('Poll response:', data);
 
                     if (data.status === "complete") {
