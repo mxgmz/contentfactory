@@ -1,5 +1,9 @@
 {
-    "name": "content-intake-chat",
-    "private": true,
-    "version": "1.0.0"
+  "name": "content-intake-chat",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@upstash/redis": "^1.28.0"
+  }
 }
