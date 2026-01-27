@@ -26,24 +26,24 @@ export default async function handler(req, res) {
     }
 
     // Get query parameters
-    const { session_id } = req.query;
+    const { request_id } = req.query;
 
-    if (!session_id) {
+    if (!request_id) {
         return res.status(400).json({
-            error: "Missing session_id parameter",
-            usage: "/api/intake/status?session_id=xxx"
+            error: "Missing request_id parameter",
+            usage: "/api/intake/status?request_id=xxx"
         });
     }
 
     try {
-        // Read from Upstash Redis
-        const cachedData = await redis.get(`result:${session_id}`);
+        // Read from Upstash Redis using request_id
+        const cachedData = await redis.get(`result:${request_id}`);
 
         if (cachedData) {
             // Parse if it's a string (Upstash returns parsed JSON by default, but being safe)
             const cachedResult = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
 
-            console.log(`Cache hit for session: ${session_id}, status: ${cachedResult.status}`);
+            console.log(`Cache hit for request: ${request_id}, status: ${cachedResult.status}`);
 
             // Found completed result in cache
             return res.status(200).json({
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
         }
 
         // Cache miss - workflow still processing
-        console.log(`Cache miss for session: ${session_id} - still processing`);
+        console.log(`Cache miss for request: ${request_id} - still processing`);
 
         return res.status(200).json({
             status: "processing",

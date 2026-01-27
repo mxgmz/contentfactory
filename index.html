@@ -768,13 +768,13 @@
             // Update UI State
             updateLoadingState(true);
 
-            // Generate unique session_id for THIS request (not reused across messages)
-            const uniqueSessionId = (crypto?.randomUUID?.() ?? fallbackUUID());
+            // Generate unique request_id for THIS message (for cache lookup)
+            const uniqueRequestId = (crypto?.randomUUID?.() ?? fallbackUUID());
 
             const payload = {
                 user_id: getUserId(),
-                session_id: uniqueSessionId,
-                request_id: state.requestId,
+                session_id: getSessionId(), // Keep same for job tracking
+                request_id: uniqueRequestId, // Unique per message for cache
                 user_input: text,
                 pieces: state.pieces
             };
@@ -800,7 +800,7 @@
 
                 // Check if this is an async response (processing status)
                 if (data.status === "processing") {
-                    console.log('Async mode: starting polling for session:', data.session_id);
+                    console.log('Async mode: starting polling for request:', uniqueRequestId);
 
                     // Show immediate acknowledgment message if provided
                     let processingMessage = null;
@@ -808,8 +808,8 @@
                         processingMessage = appendMessage('bot', data.bot_message);
                     }
 
-                    // Start polling for results (pass processingMessage to remove it later)
-                    pollForResults(data.session_id, data.job_id || state.requestId, 60, processingMessage);
+                    // Start polling for results using request_id (pass processingMessage to remove it later)
+                    pollForResults(uniqueRequestId, data.job_id || state.requestId, 60, processingMessage);
                 } else {
                     // Synchronous response (backward compatible)
                     console.log('Sync mode: handling response immediately');
@@ -825,17 +825,17 @@
         }
 
         // NEW: Polling function for async workflows
-        async function pollForResults(session_id, job_id, maxAttempts = 60, processingMessage = null) {
+        async function pollForResults(request_id, job_id, maxAttempts = 60, processingMessage = null) {
             let attempts = 0;
             const pollInterval = 2000; // Poll every 2 seconds
 
             const poll = async () => {
                 attempts++;
-                console.log(`Polling attempt ${attempts}/${maxAttempts} for session: ${session_id}`);
+                console.log(`Polling attempt ${attempts}/${maxAttempts} for request: ${request_id}`);
 
                 try {
-                    // Build query string
-                    const params = new URLSearchParams({ session_id });
+                    // Build query string (use request_id for cache lookup)
+                    const params = new URLSearchParams({ request_id });
                     if (job_id) params.append('job_id', job_id);
 
                     const response = await fetch(`/api/intake/status?${params.toString()}`);
