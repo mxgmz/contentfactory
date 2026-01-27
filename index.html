@@ -768,9 +768,12 @@
             // Update UI State
             updateLoadingState(true);
 
+            // Generate unique session_id for THIS request (not reused across messages)
+            const uniqueSessionId = (crypto?.randomUUID?.() ?? fallbackUUID());
+
             const payload = {
                 user_id: getUserId(),
-                session_id: getSessionId(),
+                session_id: uniqueSessionId,
                 request_id: state.requestId,
                 user_input: text,
                 pieces: state.pieces
@@ -800,12 +803,13 @@
                     console.log('Async mode: starting polling for session:', data.session_id);
 
                     // Show immediate acknowledgment message if provided
+                    let processingMessage = null;
                     if (data.bot_message) {
-                        appendMessage('bot', data.bot_message);
+                        processingMessage = appendMessage('bot', data.bot_message);
                     }
 
-                    // Start polling for results
-                    pollForResults(data.session_id, data.job_id || state.requestId);
+                    // Start polling for results (pass processingMessage to remove it later)
+                    pollForResults(data.session_id, data.job_id || state.requestId, 60, processingMessage);
                 } else {
                     // Synchronous response (backward compatible)
                     console.log('Sync mode: handling response immediately');
@@ -821,7 +825,7 @@
         }
 
         // NEW: Polling function for async workflows
-        async function pollForResults(session_id, job_id, maxAttempts = 60) {
+        async function pollForResults(session_id, job_id, maxAttempts = 60, processingMessage = null) {
             let attempts = 0;
             const pollInterval = 2000; // Poll every 2 seconds
 
@@ -849,6 +853,12 @@
                     if (data.status === "complete") {
                         // Got results! Process them
                         console.log('Workflow complete, rendering results');
+
+                        // Remove processing message
+                        if (processingMessage && processingMessage.parentNode) {
+                            processingMessage.remove();
+                        }
+
                         if (data.data) {
                             handleResponse(data.data);
                         }
@@ -858,6 +868,12 @@
                     } else if (data.status === "error") {
                         // Workflow failed
                         console.error('Workflow error:', data.error);
+
+                        // Remove processing message
+                        if (processingMessage && processingMessage.parentNode) {
+                            processingMessage.remove();
+                        }
+
                         appendMessage('bot', `⚠️ Error: ${data.error || 'Processing failed. Please try again.'}`);
                         updateLoadingState(false);
                         return; // Stop polling
@@ -865,6 +881,12 @@
                     } else if (attempts >= maxAttempts) {
                         // Timeout
                         console.warn('Polling timeout reached');
+
+                        // Remove processing message
+                        if (processingMessage && processingMessage.parentNode) {
+                            processingMessage.remove();
+                        }
+
                         appendMessage('bot', '⚠️ Request timed out. Your request is still processing. Please refresh to see updates or try again.');
                         updateLoadingState(false);
                         return; // Stop polling
@@ -878,6 +900,11 @@
 
                     // Retry on error unless max attempts reached
                     if (attempts >= maxAttempts) {
+                        // Remove processing message
+                        if (processingMessage && processingMessage.parentNode) {
+                            processingMessage.remove();
+                        }
+
                         appendMessage('bot', '⚠️ Connection lost while checking status. Please refresh and try again.');
                         updateLoadingState(false);
                     } else {
@@ -1021,6 +1048,7 @@
             msgDiv.innerHTML = parseMarkdown(text);
             chatHistory.appendChild(msgDiv);
             scrollToBottom();
+            return msgDiv; // Return reference so we can remove it later
         }
 
         function renderOptions(options) {
