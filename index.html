@@ -809,7 +809,7 @@
                     }
 
                     // Start polling for results using request_id (pass processingMessage to remove it later)
-                    pollForResults(uniqueRequestId, data.job_id || state.requestId, 180, processingMessage);
+                    pollForResults(uniqueRequestId, data.job_id || state.requestId, 450, processingMessage);
                 } else {
                     // Synchronous response (backward compatible)
                     console.log('Sync mode: handling response immediately');
@@ -825,13 +825,31 @@
         }
 
         // NEW: Polling function for async workflows
-        async function pollForResults(request_id, job_id, maxAttempts = 180, processingMessage = null) {
+        async function pollForResults(request_id, job_id, maxAttempts = 450, processingMessage = null) {
             let attempts = 0;
-            const pollInterval = 2000; // Poll every 2 seconds (180 attempts = 6 minutes max)
+            const pollInterval = 2000; // Poll every 2 seconds (450 attempts = 15 minutes max)
+            let message3minShown = false;
+            let message6minShown = false;
+            let message9minShown = false;
 
             const poll = async () => {
                 attempts++;
                 console.log(`Polling attempt ${attempts}/${maxAttempts} for request: ${request_id}`);
+
+                // Show fun progress messages at milestones
+                if (attempts === 90 && !message3minShown) {
+                    // 3 minutes
+                    appendMessage('bot', '☕ Esto está tomando más tiempo de lo normal. Puedes ir por un café mientras esperas...');
+                    message3minShown = true;
+                } else if (attempts === 180 && !message6minShown) {
+                    // 6 minutes
+                    appendMessage('bot', '⏰ Seguimos trabajando en tu solicitud, no te preocupes. Estamos casi listos...');
+                    message6minShown = true;
+                } else if (attempts === 270 && !message9minShown) {
+                    // 9 minutes
+                    appendMessage('bot', '🔥 Wow, esta es compleja. Pero ya casi terminamos, te lo prometemos!');
+                    message9minShown = true;
+                }
 
                 try {
                     // Build query string (use request_id for cache lookup)
