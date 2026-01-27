@@ -3,8 +3,11 @@
 // Method: GET
 // Purpose: Check cached workflow results (much faster than polling n8n)
 
-// Same cache as complete.js
-const resultsCache = global.resultsCache || (global.resultsCache = new Map());
+import { promises as fs } from 'fs';
+import path from 'path';
+
+// Use same cache directory as complete.js
+const CACHE_DIR = '/tmp/intake-cache';
 
 export default async function handler(req, res) {
     // CORS headers
@@ -30,27 +33,45 @@ export default async function handler(req, res) {
         });
     }
 
-    // Check cache for completed result
-    const cachedResult = resultsCache.get(session_id);
+    try {
+        // Read cache file
+        const cacheFile = path.join(CACHE_DIR, `${session_id}.json`);
 
-    if (cachedResult) {
-        console.log(`Cache hit for session: ${session_id}, status: ${cachedResult.status}`);
-        
-        // Found completed result in cache
-        return res.status(200).json({
-            status: cachedResult.status,
-            data: cachedResult.data,
-            cached: true,
-            timestamp: cachedResult.timestamp
+        try {
+            const fileContent = await fs.readFile(cacheFile, 'utf8');
+            const cachedResult = JSON.parse(fileContent);
+
+            console.log(`Cache hit for session: ${session_id}, status: ${cachedResult.status}`);
+
+            // Found completed result in cache
+            return res.status(200).json({
+                status: cachedResult.status,
+                data: cachedResult.data,
+                cached: true,
+                timestamp: cachedResult.timestamp
+            });
+
+        } catch (readErr) {
+            // File doesn't exist - workflow still processing
+            if (readErr.code === 'ENOENT') {
+                console.log(`Cache miss for session: ${session_id} - still processing`);
+
+                return res.status(200).json({
+                    status: "processing",
+                    message: "Workflow is still running. Results will be available when complete.",
+                    cached: false
+                });
+            }
+
+            // Other error
+            throw readErr;
+        }
+
+    } catch (err) {
+        console.error('Error reading cache:', err);
+        return res.status(500).json({
+            error: "Failed to read cache",
+            details: err.message
         });
     }
-
-    // Not in cache yet - workflow still processing
-    console.log(`Cache miss for session: ${session_id} - still processing`);
-    
-    return res.status(200).json({
-        status: "processing",
-        message: "Workflow is still running. Results will be available when complete.",
-        cached: false
-    });
 }

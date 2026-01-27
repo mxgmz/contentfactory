@@ -3,9 +3,20 @@
 // Method: POST
 // Purpose: Receive completion callback from CFFINAL copy workflow
 
-// In-memory cache (for development)
-// For production, use Vercel KV: https://vercel.com/docs/storage/vercel-kv
-const resultsCache = global.resultsCache || (global.resultsCache = new Map());
+import { promises as fs } from 'fs';
+import path from 'path';
+
+// Use /tmp directory for cache (shared within Vercel region)
+const CACHE_DIR = '/tmp/intake-cache';
+
+// Ensure cache directory exists
+async function ensureCacheDir() {
+    try {
+        await fs.mkdir(CACHE_DIR, { recursive: true });
+    } catch (err) {
+        // Directory might already exist
+    }
+}
 
 export default async function handler(req, res) {
     // CORS headers
@@ -45,28 +56,56 @@ export default async function handler(req, res) {
 
     console.log(`Received completion callback for session: ${session_id}, status: ${status}`);
 
-    // Store result in cache
-    resultsCache.set(session_id, {
-        status,
-        data: data || {},
-        timestamp: Date.now()
-    });
+    try {
+        // Ensure cache directory exists
+        await ensureCacheDir();
 
-    // Clean up old entries (older than 5 minutes)
-    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-    for (const [key, value] of resultsCache.entries()) {
-        if (value.timestamp < fiveMinutesAgo) {
-            resultsCache.delete(key);
-            console.log(`Cleaned up expired result for session: ${key}`);
+        // Write result to file
+        const cacheFile = path.join(CACHE_DIR, `${session_id}.json`);
+        const cacheData = {
+            status,
+            data: data || {},
+            timestamp: Date.now()
+        };
+
+        await fs.writeFile(cacheFile, JSON.stringify(cacheData), 'utf8');
+
+        console.log(`Cached result to file: ${cacheFile}`);
+
+        // Clean up old files (older than 5 minutes)
+        try {
+            const files = await fs.readdir(CACHE_DIR);
+            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+
+            for (const file of files) {
+                if (file.endsWith('.json')) {
+                    const filePath = path.join(CACHE_DIR, file);
+                    const fileContent = await fs.readFile(filePath, 'utf8');
+                    const fileData = JSON.parse(fileContent);
+
+                    if (fileData.timestamp < fiveMinutesAgo) {
+                        await fs.unlink(filePath);
+                        console.log(`Cleaned up expired cache file: ${file}`);
+                    }
+                }
+            }
+        } catch (cleanupErr) {
+            console.error('Cleanup error:', cleanupErr);
+            // Don't fail the request if cleanup fails
         }
+
+        // Return success
+        return res.status(200).json({
+            received: true,
+            session_id,
+            cached: true
+        });
+
+    } catch (err) {
+        console.error('Error caching result:', err);
+        return res.status(500).json({
+            error: "Failed to cache result",
+            details: err.message
+        });
     }
-
-    console.log(`Cached result for session: ${session_id}. Cache size: ${resultsCache.size}`);
-
-    // Return success
-    return res.status(200).json({
-        received: true,
-        session_id,
-        cached: true
-    });
 }
