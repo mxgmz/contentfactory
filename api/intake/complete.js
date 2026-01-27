@@ -39,18 +39,21 @@ export default async function handler(req, res) {
     // Extract data
     const { request_id, session_id, status, data } = req.body;
 
-    if (!request_id) {
-        return res.status(400).json({ error: "Missing request_id in request body" });
+    // Backward compatibility: use request_id if available, otherwise fall back to session_id
+    const cacheKey = request_id || session_id;
+
+    if (!cacheKey) {
+        return res.status(400).json({ error: "Missing request_id or session_id in request body" });
     }
 
     if (!status) {
         return res.status(400).json({ error: "Missing status in request body" });
     }
 
-    console.log(`Received completion callback for request: ${request_id} (session: ${session_id}), status: ${status}`);
+    console.log(`Received completion callback for ${request_id ? 'request' : 'session'}: ${cacheKey}, status: ${status}`);
 
     try {
-        // Store in Upstash Redis using request_id as key
+        // Store in Upstash Redis using request_id (or session_id as fallback)
         // Auto-expires in 5 minutes (300 seconds)
         const cacheData = {
             status,
@@ -58,14 +61,14 @@ export default async function handler(req, res) {
             timestamp: Date.now()
         };
 
-        await redis.set(`result:${request_id}`, JSON.stringify(cacheData), { ex: 300 });
+        await redis.set(`result:${cacheKey}`, JSON.stringify(cacheData), { ex: 300 });
 
-        console.log(`Cached result in Redis for request: ${request_id}`);
+        console.log(`Cached result in Redis for key: ${cacheKey}`);
 
         // Return success
         return res.status(200).json({
             received: true,
-            request_id,
+            request_id: cacheKey,
             session_id,
             cached: true
         });
