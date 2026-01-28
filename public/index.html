@@ -176,9 +176,16 @@
             align-self: flex-start;
             margin-bottom: 10px;
             width: fit-content;
+            font-size: 14px;
+            color: #52525b;
         }
 
-        .typing-indicator span {
+        .typing-indicator .dots {
+            display: inline-block;
+            margin-left: 4px;
+        }
+
+        .typing-indicator .dots span {
             display: inline-block;
             width: 6px;
             height: 6px;
@@ -188,11 +195,11 @@
             margin: 0 2px;
         }
 
-        .typing-indicator span:nth-child(1) {
+        .typing-indicator .dots span:nth-child(1) {
             animation-delay: -0.32s;
         }
 
-        .typing-indicator span:nth-child(2) {
+        .typing-indicator .dots span:nth-child(2) {
             animation-delay: -0.16s;
         }
 
@@ -681,7 +688,10 @@
         </div>
 
         <div class="typing-indicator" id="typing-indicator">
-            <span></span><span></span><span></span>
+            <span id="typing-message"></span>
+            <span class="dots">
+                <span></span><span></span><span></span>
+            </span>
         </div>
 
         <div class="input-area">
@@ -710,12 +720,29 @@
         };
         let stagedApprovals = [];
 
+        // Fun typing messages that rotate while loading
+        const typingMessages = [
+            "🍳 Cocinando contenido...",
+            "📝 Escribiendo rápido...",
+            "📚 Buscando en documentos...",
+            "💡 Generando ideas...",
+            "🎨 Diseñando posts...",
+            "✨ Puliendo detalles...",
+            "🔍 Investigando tendencias...",
+            "🚀 Preparando lanzamiento...",
+            "📸 Seleccionando imágenes...",
+            "🎯 Optimizando contenido..."
+        ];
+        let typingMessageIndex = 0;
+        let typingMessageInterval = null;
+
         // --- DOM ELEMENTS ---
         const chatHistory = document.getElementById('chat-history');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const optionsContainer = document.getElementById('options-container');
         const typingIndicator = document.getElementById('typing-indicator');
+        const typingMessage = document.getElementById('typing-message');
         const statusIndicator = document.getElementById('status-indicator');
         const debugId = document.getElementById('debug-id');
         const newJobBtn = document.getElementById('new-job-btn');
@@ -2030,9 +2057,29 @@
             if (state.activeRequests > 0) {
                 typingIndicator.style.display = 'block';
                 statusIndicator.innerText = "Thinking...";
+
+                // Start rotating fun messages
+                if (!typingMessageInterval) {
+                    // Set first message immediately
+                    typingMessageIndex = Math.floor(Math.random() * typingMessages.length);
+                    typingMessage.innerText = typingMessages[typingMessageIndex];
+
+                    // Rotate every 2 seconds
+                    typingMessageInterval = setInterval(() => {
+                        typingMessageIndex = (typingMessageIndex + 1) % typingMessages.length;
+                        typingMessage.innerText = typingMessages[typingMessageIndex];
+                    }, 2000);
+                }
                 // Concurrent: Do NOT disable input
             } else {
                 typingIndicator.style.display = 'none';
+
+                // Stop rotating messages
+                if (typingMessageInterval) {
+                    clearInterval(typingMessageInterval);
+                    typingMessageInterval = null;
+                }
+
                 if (!state.isComplete) {
                     statusIndicator.innerText = "Online";
                 }
