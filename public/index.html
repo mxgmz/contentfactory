@@ -1036,18 +1036,26 @@
                 appendMessage('bot', data.bot_message);
             }
 
-            // 4. Handle Pieces Display (for TEXT_APPROVAL state)
-            if (data.showPieces && data.pieces && Array.isArray(data.pieces)) {
-                state.pieces = data.pieces; // Update state with latest pieces
-                renderPieces(data.pieces);
+            // 4. Update pieces state whenever provided (regardless of display flag)
+            if (data.pieces && Array.isArray(data.pieces)) {
+                state.pieces = data.pieces; // Always update state with latest pieces
             }
 
-            // 5. Handle Images Display (NEW - for IMAGE_APPROVAL state)
+            // 5. Display pieces only if showPieces flag is true
+            if (data.showPieces && state.pieces && state.pieces.length > 0) {
+                renderPieces(state.pieces);
+            } else if (data.showPieces === false) {
+                // Clear pieces display if explicitly hidden
+                const container = document.getElementById('active-pieces-container');
+                if (container) container.innerHTML = '';
+            }
+
+            // 6. Handle Images Display (NEW - for IMAGE_APPROVAL state)
             if (data.showImages && data.images && Array.isArray(data.images)) {
                 renderImages(data.images);
             }
 
-            // 6. Handle Quick Replies (CRITICAL FIX - check both fields)
+            // 7. Handle Quick Replies (CRITICAL FIX - check both fields)
             if (data.quickReplies && Array.isArray(data.quickReplies) && data.quickReplies.length > 0) {
                 renderOptions(data.quickReplies);
             } else if (data.options && Array.isArray(data.options) && data.options.length > 0) {
