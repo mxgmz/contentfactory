@@ -1163,6 +1163,7 @@
             // 3. Render Bot Message
             if (data.bot_message) {
                 appendMessage('bot', data.bot_message);
+                playNotificationSound(); // Play subtle audio cue
             }
 
             // 4. Update pieces state whenever provided (regardless of display flag)
@@ -1195,6 +1196,41 @@
         }
 
         // --- UI HELPERS ---
+
+        // Subtle notification sound using Web Audio API
+        function playNotificationSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Create a pleasant two-tone notification
+                const createTone = (frequency, startTime, duration) => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+
+                    oscillator.frequency.value = frequency;
+                    oscillator.type = 'sine';
+
+                    // Envelope for smooth sound
+                    gainNode.gain.setValueAtTime(0, startTime);
+                    gainNode.gain.linearRampToValueAtTime(0.1, startTime + 0.01); // Quiet volume
+                    gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+                    oscillator.start(startTime);
+                    oscillator.stop(startTime + duration);
+                };
+
+                // Two gentle tones: C6 and E6 (pleasant interval)
+                const now = audioContext.currentTime;
+                createTone(1046.5, now, 0.1);      // C6
+                createTone(1318.5, now + 0.08, 0.12); // E6
+            } catch (err) {
+                // Silently fail if audio API not supported
+                console.log('Audio notification not supported:', err);
+            }
+        }
 
         function appendMessage(sender, text) {
             const msgDiv = document.createElement('div');
