@@ -705,7 +705,8 @@
             requestId: null,
             activeRequests: 0,
             isComplete: false,
-            pieces: []
+            pieces: [],
+            currentPollingId: null // Track current polling request to prevent concurrent polls
         };
         let stagedApprovals = [];
 
@@ -826,6 +827,12 @@
 
         // NEW: Polling function for async workflows
         async function pollForResults(request_id, job_id, maxAttempts = 450, processingMessage = null) {
+            // Cancel any existing polling
+            if (state.currentPollingId && state.currentPollingId !== request_id) {
+                console.log(`Cancelling previous polling for ${state.currentPollingId}, starting new poll for ${request_id}`);
+            }
+            state.currentPollingId = request_id;
+
             let attempts = 0;
             const pollInterval = 2000; // Poll every 2 seconds (450 attempts = 15 minutes max)
             let message3minShown = false;
@@ -833,6 +840,13 @@
             let message9minShown = false;
 
             const poll = async () => {
+                // Check if this polling has been superseded by a newer request
+                if (state.currentPollingId !== request_id) {
+                    console.log(`Polling for ${request_id} cancelled - superseded by ${state.currentPollingId}`);
+                    updateLoadingState(false);
+                    return; // Stop this polling loop
+                }
+
                 attempts++;
                 console.log(`Polling attempt ${attempts}/${maxAttempts} for request: ${request_id}`);
 
@@ -880,6 +894,12 @@
                         if (data.data) {
                             handleResponse(data.data);
                         }
+
+                        // Clear polling ID if this is the current one
+                        if (state.currentPollingId === request_id) {
+                            state.currentPollingId = null;
+                        }
+
                         updateLoadingState(false);
                         return; // Stop polling
 
@@ -893,6 +913,12 @@
                         }
 
                         appendMessage('bot', `⚠️ Error: ${data.error || 'Processing failed. Please try again.'}`);
+
+                        // Clear polling ID if this is the current one
+                        if (state.currentPollingId === request_id) {
+                            state.currentPollingId = null;
+                        }
+
                         updateLoadingState(false);
                         return; // Stop polling
 
@@ -906,6 +932,12 @@
                         }
 
                         appendMessage('bot', '⚠️ Request timed out. Your request is still processing. Please refresh to see updates or try again.');
+
+                        // Clear polling ID if this is the current one
+                        if (state.currentPollingId === request_id) {
+                            state.currentPollingId = null;
+                        }
+
                         updateLoadingState(false);
                         return; // Stop polling
                     }
@@ -924,6 +956,12 @@
                         }
 
                         appendMessage('bot', '⚠️ Connection lost while checking status. Please refresh and try again.');
+
+                        // Clear polling ID if this is the current one
+                        if (state.currentPollingId === request_id) {
+                            state.currentPollingId = null;
+                        }
+
                         updateLoadingState(false);
                     } else {
                         // Retry after delay
@@ -978,6 +1016,7 @@
             state.activeRequests = 0;
             state.isComplete = false;
             state.pieces = []; // Clear pieces
+            state.currentPollingId = null; // Cancel any active polling
             stagedApprovals = []; // Clear staged approvals
 
             // Clear UI
@@ -1427,6 +1466,19 @@
                     const bg = cardElement.querySelector('.swipe-bg');
                     if (bg) bg.style.opacity = 0;
                 }
+
+                // Clean up window listeners after drag ends
+                window.removeEventListener('mousemove', windowMouseMove);
+                window.removeEventListener('mouseup', windowMouseUp);
+            };
+
+            // Define window event handlers as named functions so we can remove them
+            const windowMouseMove = (e) => {
+                if (isDragging) moveDrag(e.clientX);
+            };
+
+            const windowMouseUp = (e) => {
+                endDrag();
             };
 
             // Touch events
@@ -1435,11 +1487,12 @@
             cardElement.addEventListener('touchend', endDrag);
 
             // Mouse events (for desktop testing)
-            cardElement.addEventListener('mousedown', e => startDrag(e.clientX));
-            window.addEventListener('mousemove', e => {
-                if (isDragging) moveDrag(e.clientX);
+            cardElement.addEventListener('mousedown', e => {
+                startDrag(e.clientX);
+                // Add window listeners only when drag starts
+                window.addEventListener('mousemove', windowMouseMove);
+                window.addEventListener('mouseup', windowMouseUp);
             });
-            window.addEventListener('mouseup', endDrag);
         }
 
         function triggerApproval(piece, cardElement) {
