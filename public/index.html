@@ -174,11 +174,11 @@
             border-radius: 12px;
             border-bottom-left-radius: 4px;
             align-self: flex-start;
-            margin-bottom: 10px;
             width: fit-content;
             font-size: 14px;
             color: #52525b;
-            order: 999; /* Always appear last in flex container */
+            order: 9999; /* Always appear last in flex container */
+            flex-shrink: 0; /* Prevent shrinking */
         }
 
         .typing-indicator .dots {
@@ -2147,7 +2147,9 @@
                     statusIndicator.innerText = "Online";
                 }
             }
-            scrollToBottom();
+
+            // Ensure scroll happens after DOM updates
+            setTimeout(() => scrollToBottom(), 10);
         }
 
         function scrollToBottom() {
