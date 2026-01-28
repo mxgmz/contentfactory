@@ -1111,6 +1111,17 @@
 
             // Clear UI
             chatHistory.innerHTML = '';
+
+            // Recreate typing indicator after clearing
+            chatHistory.innerHTML = `
+                <div class="typing-indicator" id="typing-indicator">
+                    <span id="typing-message"></span>
+                    <span class="dots">
+                        <span></span><span></span><span></span>
+                    </span>
+                </div>
+            `;
+
             userInput.value = '';
             clearOptions();
 
