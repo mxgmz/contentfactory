@@ -1519,9 +1519,8 @@
                 sendEditsBtn.style.backgroundColor = '#2563eb';
 
                 sendEditsBtn.onclick = () => {
-                    // Filter text only for the manual "Send" action? 
-                    // Or just trigger sendMessage with a system note
-                    sendMessage("Submitting my edits.");
+                    // Trigger the send button which will include staged edits
+                    sendBtn.click();
                 };
                 container.appendChild(sendEditsBtn);
             }
@@ -2009,18 +2008,35 @@
         sendBtn.addEventListener('click', () => {
             let text = userInput.value.trim();
 
-            // Check for staged approvals
+            // Check for staged approvals and edits
             if (stagedApprovals.length > 0) {
-                const approvalTexts = stagedApprovals.map(item => {
-                    return `piece number ${item.piece.number || '?'} (${item.piece.title}) has been approved`;
-                }).join('\n');
+                const messages = [];
+
+                // Separate approvals from edits
+                const approvals = stagedApprovals.filter(item => item.type === 'APPROVE');
+                const edits = stagedApprovals.filter(item => item.type === 'EDIT');
+
+                // Generate approval messages
+                if (approvals.length > 0) {
+                    const approvalTexts = approvals.map(item => {
+                        return `Piece number ${item.piece.number} (${item.piece.title}) has been approved`;
+                    }).join('\n');
+                    messages.push(approvalTexts);
+                }
+
+                // Generate edit messages using the summary field
+                if (edits.length > 0) {
+                    const editTexts = edits.map(item => {
+                        return item.summary || `Piece number ${item.piece.number} (${item.piece.title}) has been edited`;
+                    }).join('\n');
+                    messages.push(editTexts);
+                }
 
                 // Combine with user text or send alone
-                text = text ? (text + '\n\n' + approvalTexts) : approvalTexts;
+                const stagedText = messages.join('\n\n');
+                text = text ? (text + '\n\n' + stagedText) : stagedText;
 
-                // Clear staged items visuals (they will be re-rendered as approved if backend confirms, 
-                // but for now we just clear the chips. The cards stay green as "pending" until refreshed or we could leave them)
-                // The prompt implies we send the text.
+                // Clear staged items visuals
                 stagedApprovals = [];
                 renderStagedApprovals();
             }
