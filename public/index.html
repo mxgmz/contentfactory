@@ -1156,6 +1156,11 @@
             }
 
             pieces.forEach((piece, index) => {
+                // Ensure piece has a number (use index+1 as fallback)
+                if (!piece.number) {
+                    piece.number = index + 1;
+                }
+
                 const card = document.createElement('div');
                 card.classList.add('piece-card');
 
@@ -1513,7 +1518,7 @@
             }
 
             // 2. Check if already staged (Approvals)
-            if (stagedApprovals.some(p => p.type === 'APPROVE' && p.piece.number === piece.number && p.piece.title === piece.title)) {
+            if (stagedApprovals.some(p => p.type === 'APPROVE' && p.piece.number === piece.number)) {
                 return;
             }
 
@@ -1528,7 +1533,7 @@
             renderStagedApprovals();
 
             // 5. Update State for Payload
-            const pieceInState = state.pieces.find(p => p.number === piece.number && p.title === piece.title);
+            const pieceInState = state.pieces.find(p => p.number === piece.number);
             if (pieceInState) {
                 pieceInState.approved = true;
             }
@@ -1593,7 +1598,7 @@
 
             // 1. Revert State
             if (item.type === 'APPROVE') {
-                const pieceInState = state.pieces.find(p => p.number === item.piece.number && p.title === item.piece.title);
+                const pieceInState = state.pieces.find(p => p.number === item.piece.number);
                 if (pieceInState) {
                     pieceInState.approved = false;
                 }
@@ -1605,10 +1610,16 @@
                 }
             } else if (item.type === 'EDIT') {
                 if (item.summary.startsWith('Commented')) {
-                    // Revert image comment
-                    const pieceInState = state.pieces.find(p => p.number === item.piece.number && p.title === item.piece.title);
-                    if (pieceInState && pieceInState.image_comments) {
-                        pieceInState.image_comments.pop(); // Remove last added
+                    // Revert image comments to original state
+                    const pieceInState = state.pieces.find(p => p.number === item.piece.number);
+                    if (pieceInState) {
+                        if (pieceInState.original_image_comments !== undefined) {
+                            pieceInState.image_comments = JSON.parse(JSON.stringify(pieceInState.original_image_comments));
+                            delete pieceInState.original_image_comments;
+                        } else {
+                            pieceInState.image_comments = [];
+                        }
+                        pieceInState.edited = false;
                     }
                 } else {
                     // Text edit
@@ -1683,7 +1694,7 @@
             const newContent = editContentInput.value;
 
             // Find in state to ensure we update the main reference (though objects are by ref)
-            const pieceInState = state.pieces.find(p => p.number === currentEditingPiece.number && p.title === currentEditingPiece.title) || currentEditingPiece;
+            const pieceInState = state.pieces.find(p => p.number === currentEditingPiece.number) || currentEditingPiece;
 
             // VERSION CONTROL: Save originals if not exists
             if (pieceInState.original_title === undefined) {
@@ -1720,7 +1731,7 @@
         }
 
         function undoEdit(piece) {
-            const pieceInState = state.pieces.find(p => p.number === piece.number && p.title === piece.title) || piece;
+            const pieceInState = state.pieces.find(p => p.number === piece.number) || piece;
 
             if (pieceInState.original_title !== undefined) {
                 pieceInState.title = pieceInState.original_title;
@@ -2080,7 +2091,8 @@
                 // Generate approval messages
                 if (approvals.length > 0) {
                     const approvalTexts = approvals.map(item => {
-                        return `Piece number ${item.piece.number} (${item.piece.title}) has been approved`;
+                        const title = item.piece.title || 'Untitled';
+                        return `Piece number ${item.piece.number} (${title}) has been approved`;
                     }).join('\n');
                     messages.push(approvalTexts);
                 }
@@ -2088,7 +2100,8 @@
                 // Generate edit messages using the summary field
                 if (edits.length > 0) {
                     const editTexts = edits.map(item => {
-                        return item.summary || `Piece number ${item.piece.number} (${item.piece.title}) has been edited`;
+                        const title = item.piece.title || 'Untitled';
+                        return item.summary || `Piece number ${item.piece.number} (${title}) has been edited`;
                     }).join('\n');
                     messages.push(editTexts);
                 }
@@ -2124,10 +2137,15 @@
 
         function saveImageComment(piece, url, comment) {
             // Find reference
-            const pieceInState = state.pieces.find(p => p.number === piece.number && p.title === piece.title) || piece;
+            const pieceInState = state.pieces.find(p => p.number === piece.number) || piece;
 
             if (!pieceInState.image_comments) {
                 pieceInState.image_comments = [];
+            }
+
+            // Save original state for undo (only once per piece)
+            if (pieceInState.original_image_comments === undefined) {
+                pieceInState.original_image_comments = JSON.parse(JSON.stringify(pieceInState.image_comments || []));
             }
 
             // Update or Add
@@ -2142,7 +2160,7 @@
                 pieceInState.image_comments.push({ url, comment });
             }
 
-            // Flag as edited to show "Send Edits" if needed? 
+            // Flag as edited to show "Send Edits" if needed?
             // The requirement said "sent back", so it should probably trigger an edit state
             // Let's mark the piece as edited too so it gets picked up by "Send Edits"
             pieceInState.edited = true;
