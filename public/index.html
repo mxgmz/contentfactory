@@ -736,6 +736,7 @@
         ];
         let typingMessageIndex = 0;
         let typingMessageInterval = null;
+        let userHasScrolled = false; // Track if user manually scrolled during typing
 
         // --- DOM ELEMENTS ---
         const chatHistory = document.getElementById('chat-history');
@@ -1270,19 +1271,25 @@
                 let currentIndex = 0;
                 const typingSpeed = 8; // milliseconds per character (fast and snappy)
 
+                // Reset scroll flag for new message
+                userHasScrolled = false;
+
                 const typeNextChar = () => {
                     if (currentIndex <= text.length) {
                         // Show partial text and parse markdown for formatting
                         const partialText = text.substring(0, currentIndex);
                         msgDiv.innerHTML = parseMarkdown(partialText);
 
-                        // Only auto-scroll if user is already at the bottom
-                        if (isScrolledToBottom()) {
+                        // Only auto-scroll if user hasn't manually scrolled
+                        if (!userHasScrolled && isScrolledToBottom()) {
                             scrollToBottom();
                         }
 
                         currentIndex++;
                         setTimeout(typeNextChar, typingSpeed);
+                    } else {
+                        // Typing complete, reset flag
+                        userHasScrolled = false;
                     }
                 };
 
@@ -2336,6 +2343,21 @@
         });
 
         newJobBtn.addEventListener('click', startNewJob);
+
+        // Detect manual scrolling by user
+        let scrollTimeout;
+        chatHistory.addEventListener('scroll', () => {
+            // Clear existing timeout
+            clearTimeout(scrollTimeout);
+
+            // Set flag after a short delay to avoid triggering on programmatic scrolls
+            scrollTimeout = setTimeout(() => {
+                // Only set flag if user scrolled away from bottom
+                if (!isScrolledToBottom()) {
+                    userHasScrolled = true;
+                }
+            }, 50);
+        });
 
         // Start
         init();
