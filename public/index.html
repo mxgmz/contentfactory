@@ -1275,7 +1275,12 @@
                         // Show partial text and parse markdown for formatting
                         const partialText = text.substring(0, currentIndex);
                         msgDiv.innerHTML = parseMarkdown(partialText);
-                        scrollToBottom();
+
+                        // Only auto-scroll if user is already at the bottom
+                        if (isScrolledToBottom()) {
+                            scrollToBottom();
+                        }
+
                         currentIndex++;
                         setTimeout(typeNextChar, typingSpeed);
                     }
@@ -2213,6 +2218,12 @@
             requestAnimationFrame(() => {
                 chatHistory.scrollTop = chatHistory.scrollHeight;
             });
+        }
+
+        // Check if user is scrolled near the bottom (within 100px)
+        function isScrolledToBottom() {
+            const threshold = 100;
+            return chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight < threshold;
         }
 
         // --- MARKDOWN HELPER ---
