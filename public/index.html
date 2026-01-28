@@ -1160,14 +1160,40 @@
                         imgWrapper.style.overflow = 'hidden';
 
                         const img = document.createElement('img');
-                        img.src = url;
                         img.alt = piece.title || 'Image';
                         img.style.width = '100%';
                         img.style.height = '150px';
                         img.style.objectFit = 'cover';
                         img.style.display = 'block';
 
-                        imgWrapper.appendChild(img);
+                        // Loading state
+                        imgWrapper.style.backgroundColor = '#f3f4f6';
+                        imgWrapper.style.display = 'flex';
+                        imgWrapper.style.alignItems = 'center';
+                        imgWrapper.style.justifyContent = 'center';
+
+                        const loadingText = document.createElement('div');
+                        loadingText.style.color = '#9ca3af';
+                        loadingText.style.fontSize = '12px';
+                        loadingText.innerText = 'Loading...';
+                        imgWrapper.appendChild(loadingText);
+
+                        // Error handling
+                        img.onerror = () => {
+                            loadingText.innerText = '⚠️ Failed to load image';
+                            loadingText.style.color = '#ef4444';
+                            console.error('Failed to load image:', url);
+                        };
+
+                        // Success handling
+                        img.onload = () => {
+                            imgWrapper.removeChild(loadingText);
+                            imgWrapper.style.backgroundColor = 'transparent';
+                            imgWrapper.appendChild(img);
+                        };
+
+                        // Start loading
+                        img.src = url;
 
                         // COMMENT UI
                         const commentContainer = document.createElement('div');
