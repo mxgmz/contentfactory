@@ -1109,10 +1109,35 @@
         function appendMessage(sender, text) {
             const msgDiv = document.createElement('div');
             msgDiv.classList.add('message', sender);
-            // Parse Markdown for better formatting
-            msgDiv.innerHTML = parseMarkdown(text);
             chatHistory.appendChild(msgDiv);
-            scrollToBottom();
+
+            // User messages appear instantly
+            if (sender === 'user') {
+                msgDiv.innerHTML = parseMarkdown(text);
+                scrollToBottom();
+                return msgDiv;
+            }
+
+            // Bot messages have typing animation
+            if (sender === 'bot') {
+                let currentIndex = 0;
+                const typingSpeed = 15; // milliseconds per character (faster = more like ChatGPT)
+
+                const typeNextChar = () => {
+                    if (currentIndex <= text.length) {
+                        // Show partial text and parse markdown for formatting
+                        const partialText = text.substring(0, currentIndex);
+                        msgDiv.innerHTML = parseMarkdown(partialText);
+                        scrollToBottom();
+                        currentIndex++;
+                        setTimeout(typeNextChar, typingSpeed);
+                    }
+                };
+
+                // Start typing animation immediately
+                typeNextChar();
+            }
+
             return msgDiv; // Return reference so we can remove it later
         }
 
