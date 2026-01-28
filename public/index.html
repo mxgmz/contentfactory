@@ -864,9 +864,9 @@
                 pieces: state.pieces
             };
 
-            // Include mode/state if set
-            if (state.mode) {
-                payload.state = state.mode;
+            // Only include state field if chat mode is selected
+            if (state.mode === 'chat') {
+                payload.state = 'chat';
             }
 
             try {
