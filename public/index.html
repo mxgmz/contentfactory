@@ -1163,7 +1163,17 @@
             // 3. Render Bot Message
             if (data.bot_message) {
                 appendMessage('bot', data.bot_message);
-                playNotificationSound(); // Play subtle audio cue
+
+                // Only play sound for actual responses, not status/processing messages
+                const isStatusMessage =
+                    data.bot_message.includes('¡Perfecto! Trabajando en tu solicitud') ||
+                    data.bot_message.includes('☕ Esto está tomando más tiempo') ||
+                    data.bot_message.includes('⏰ Seguimos trabajando') ||
+                    data.bot_message.includes('🔥 Wow, esta es compleja');
+
+                if (!isStatusMessage) {
+                    playNotificationSound(); // Play subtle audio cue
+                }
             }
 
             // 4. Update pieces state whenever provided (regardless of display flag)
