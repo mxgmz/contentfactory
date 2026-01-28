@@ -716,7 +716,8 @@
             activeRequests: 0,
             isComplete: false,
             pieces: [],
-            currentPollingId: null // Track current polling request to prevent concurrent polls
+            currentPollingId: null, // Track current polling request to prevent concurrent polls
+            mode: null // "content_factory" or "chat"
         };
         let stagedApprovals = [];
 
@@ -777,8 +778,64 @@
             console.log("Current Session:", currentSession);
             debugId.innerText = `Session: ${currentSession.slice(0, 8)}...`;
 
-            appendMessage('bot', '¿Qué estamos promoviendo hoy?');
+            // Show welcome message and mode selection
+            showWelcomeScreen();
 
+        }
+
+        function showWelcomeScreen() {
+            // Welcome message
+            appendMessage('bot', '¡Bienvenido a Content Factory! 👋\n\n¿Cómo te gustaría comenzar?');
+
+            // Show mode selection buttons
+            const modeButtons = [
+                { label: 'Iniciar Chat', mode: 'chat' },
+                { label: 'Iniciar Content Factory', mode: 'content_factory' }
+            ];
+
+            const btnContainer = document.createElement('div');
+            btnContainer.style.display = 'flex';
+            btnContainer.style.gap = '12px';
+            btnContainer.style.marginTop = '12px';
+            btnContainer.style.flexWrap = 'wrap';
+
+            modeButtons.forEach(({ label, mode }) => {
+                const btn = document.createElement('button');
+                btn.classList.add('option-btn');
+                btn.innerText = label;
+                btn.style.flex = '1';
+                btn.style.minWidth = '200px';
+                btn.style.padding = '16px 24px';
+                btn.style.fontSize = '16px';
+                btn.style.fontWeight = '600';
+
+                btn.onclick = () => {
+                    // Set mode
+                    state.mode = mode;
+                    console.log('Mode selected:', mode);
+
+                    // Remove buttons
+                    btnContainer.remove();
+
+                    // Show mode confirmation
+                    if (mode === 'chat') {
+                        appendMessage('user', 'Iniciar Chat');
+                        appendMessage('bot', '¡Perfecto! Modo chat activado. ¿En qué puedo ayudarte?');
+                    } else {
+                        appendMessage('user', 'Iniciar Content Factory');
+                        appendMessage('bot', '¡Excelente! ¿Qué estamos promoviendo hoy?');
+                    }
+
+                    // Visual feedback
+                    btn.style.background = 'var(--primary-color)';
+                    btn.style.color = 'white';
+                };
+
+                btnContainer.appendChild(btn);
+            });
+
+            chatHistory.appendChild(btnContainer);
+            scrollToBottom();
         }
 
         // --- CORE LOGIC ---
@@ -806,6 +863,11 @@
                 user_input: text,
                 pieces: state.pieces
             };
+
+            // Include mode/state if set
+            if (state.mode) {
+                payload.state = state.mode;
+            }
 
             try {
                 console.log('Sending payload:', payload);
@@ -1044,6 +1106,7 @@
             state.isComplete = false;
             state.pieces = []; // Clear pieces
             state.currentPollingId = null; // Cancel any active polling
+            state.mode = null; // Reset mode selection
             stagedApprovals = []; // Clear staged approvals
 
             // Clear UI
@@ -1060,7 +1123,7 @@
             console.log("Started new job/session:", newId);
 
             // Re-initialize
-            appendMessage('bot', '¿Qué estamos promoviendo hoy?');
+            showWelcomeScreen();
             userInput.disabled = false;
             sendBtn.disabled = false;
             statusIndicator.innerText = "Ready";
